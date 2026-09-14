@@ -63,12 +63,14 @@ gains (Phase 3) are the fix. CPU only: 0.7 s per tick at batch 128; MPS has no s
 Done when: 130k-neuron forward pass at batch 128 well under 1 s on GPU; both checks pass;
 activity renders.
 
-### 2 — Show it the board (week 3) — BUILT 2026-09-14, target not met yet (see flybrain/README.md)
-Result: the untrained optic lobe carries the board at 91.6% of squares on random placements
-(95.5% on realistic positions), against a target of > 99.5%; the stimulus itself decodes at
-98.8%; descending neurons 47.4% / 61.2% before any training.
-Target not met yet: next levers are a lower input range (receptor rates capped at 0.5) and a larger
-probe training set. Details and table in flybrain/README.md.
+### 2 — Show it the board (week 3) — DONE 2026-09-15 (see flybrain/README.md)
+<!-- RESULTS:begin -->
+Result: target met. Retinotopic linear readout of the untrained medulla + lobula: 100.0% of
+squares on random placements (100.0% realistic); generic principal-component readout 99.98% / 100.0%
+(the stimulus itself reads at 100.0%). Descending neurons 50.1% / 63.5% before
+any training. 7,168 training boards; receptor-rate cap left at 0.8 (0.5 and 0.3 made no difference).
+Table and details in flybrain/README.md.
+<!-- RESULTS:end -->
 1. Eye map from annotation columns assignedOlHex1/assignedOlHex2: 892 columns in the right eye.
    Photoreceptors placed by their strongest one-per-column partner. The board is a retinotopic
    quantile grid (8 rank bands × 8 files of equal column count) over the 645 columns that have
