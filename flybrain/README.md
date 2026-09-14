@@ -93,39 +93,33 @@ two brightest levels were nearly indistinguishable one synapse in. A per-square 
 photoreceptors recovers the state at 100.0% on held-out boards, so the encoding itself has no
 ceiling below the target.
 
-**The probe.** 4,096 uniformly random placements (each square empty with p = 0.4, else a
+**The probe.** 8,192 uniformly random placements (each square empty with p = 0.4, else a
 uniform piece; not legal chess, deliberately, so every state appears on every square hundreds
-of times) plus 1,024 positions from random play as a realistic test set. Training uses 3,072
-placements, 512 choose the regularisation, 512 are held out. Each position runs through the
-untrained Phase 1 model for 24 ticks; the steady-state activity of each stage is read by a
-linear classifier (PCA to at most 2,048 components, one softmax regression head per square
-with 13 classes and one for the side to move, fit to convergence with L-BFGS). A least-squares
-readout on one-hot targets is reported alongside; it masks classes whose codes are collinear.
+of times) plus 1,024 positions from random play as a realistic test set. Training uses 7,168
+placements, 512 choose the settings, 512 are held out. Each position runs through the untrained
+Phase 1 model for 24 ticks and the steady-state activity of each stage is read two ways, both
+linear in the activity:
 
-**Results** (5,120 positions, 3,072 for training, 24 ticks, gain 1.5; a readout that
+- *generic*: principal components of the whole stage (kept down to a floor on the eigenvalue
+  spectrum, scaled globally or with a floored partial whitening), one softmax head per square
+  and one for the side to move, fit to convergence with L-BFGS; floor, scaling and penalty are
+  chosen on the validation split;
+- *retinotopic* (stages with eye columns): each square is read by its own linear head from the
+  neurons assigned to that square's columns, the way a downstream neuron would read the medulla.
+
+<!-- RESULTS:begin -->
+**Results** (9,216 positions, 7,168 for training, 24 ticks, gain 1.5; a readout that
 always answers "empty" scores 40% on random placements and about 44% on random play):
 
-| stage | neurons | responding | square accuracy, random placements | square accuracy, random play | side to move |
-|---|---|---|---|---|---|
-| Photoreceptor input (the stimulus itself) | 2,239 | 97.5% | **98.8%** | 99.7% | 100.0% |
-| Lamina L1–L5, right | 4,466 | 88.9% | **90.0%** | 94.0% | 100.0% |
-| Medulla + lobula, right (all optic-lobe intrinsic) | 44,789 | 75.5% | **91.6%** | 95.5% | 100.0% |
-| Visual projection neurons, right | 4,612 | 41.7% | **87.3%** | 92.8% | 100.0% |
-| Central brain intrinsic | 32,160 | 0.9% | **55.8%** | 67.4% | 100.0% |
-| Descending neurons | 1,314 | 0.5% | **47.4%** | 61.2% | 100.0% |
+| stage | neurons | generic readout, random placements | generic, random play | retinotopic readout, random placements | retinotopic, random play | side to move |
+|---|---|---|---|---|---|---|
+| Photoreceptor input (the stimulus itself) | 2,239 | **100.0%** | 100.0% | **—** | — | 100.0% |
+| Lamina L1–L5, right | 4,466 | **100.0%** | 100.0% | **100.0%** | 100.0% | 100.0% |
+| Medulla + lobula, right (all optic-lobe intrinsic) | 44,789 | **99.98%** | 100.0% | **100.0%** | 100.0% | 100.0% |
+| Visual projection neurons, right | 4,612 | **99.98%** | 100.0% | **—** | — | 100.0% |
+| Central brain intrinsic | 32,160 | **66.9%** | 76.2% | **—** | — | 100.0% |
+| Descending neurons | 1,314 | **50.1%** | 63.5% | **—** | — | 100.0% |
 
-Per piece, from the medulla on random placements: empty 100.0%, then between 78.2% (white knights)
-and 96.3% (black kings). The side to move is read perfectly from every stage.
-
-**Verdict: target not met yet.** The plan asks for more than 99.5% of squares from the medulla
-and lobula; the untrained optic lobe gives 91.6% (95.5% on realistic positions). The
-stimulus is not the limit: the same readout recovers 98.8% from the
-photoreceptor currents and a per-square classifier 100%. The loss happens inside the network:
-tanh units compress the level code and lateral connections mix neighbouring squares in a way a
-linear readout cannot fully undo. Fixing the stimulus once already helped a lot (with currents
-2.0 × level the medulla read only 74.6%); two more levers remain before anything in the wiring
-is touched, each one 25-minute run: cap the receptor rates at 0.5 instead of 0.8 so the
-medulla stays in its linear range, and double the probe's training set. The descending neurons
-already carry the board at 47.4% (61.2% realistic) before any training, the baseline Phase 3
-must beat.
+**Verdict: target met.** The plan asks for more than 99.5% of squares read from the medulla and lobula by a linear readout. The generic readout, principal components of the whole stage, gives 99.98% on random placements and 100.0% on realistic positions (kept 176 components, partial scaling, penalty 1e-08); the retinotopic readout, each square read from the neurons of its own eye columns, gives 100.0% / 100.0%. Of the two levers, the training set was the one that mattered: at 3,072 boards the generic readout reached 91.6%, at 7,168 boards 99.98%, with the probe's component floor, scaling and penalty chosen on the validation split. The receptor-rate cap made no difference (0.8, 0.5 and 0.3 gave the same retinotopic accuracy on a pilot) and stays at 0.8. The stimulus itself reads at 100.0%, the lamina at 100.0% and the visual projection neurons at 99.98%: the whole board leaves the optic lobe intact. It then thins out in the untrained central brain (66.9%) and reaches the descending neurons at 50.1% (63.5% realistic), the baseline Phase 3 must beat.
+<!-- RESULTS:end -->
 
