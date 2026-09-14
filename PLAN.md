@@ -1,0 +1,149 @@
+# Chess for the Digital Fly — project plan
+
+Compiled 2026-09-14. Designed version: plan.html (published as an artifact).
+
+## The honest version
+
+A living fruit fly cannot play chess. It learns simple associations over minutes and each eye
+gives it ~750 image points; there is no route to perceiving 64 squares × 12 piece kinds, let
+alone planning. The nearest real-fly experiment is in the appendix and is a performance piece.
+
+What can be done: train the **digital fly**. The connectome fixes every neuron, every
+connection and (via neurotransmitter predictions) the sign of each connection. It does not
+measure connection strengths. We keep the anatomy fixed, learn only the strengths, show the
+board to the photoreceptors, read the move from the 1,314 descending neurons, and ask whether
+that wiring can support chess.
+
+Precedents (both Nature 2024): Shiu et al. simulated the whole female brain from a connectome
+and reproduced feeding/grooming circuits; Lappalainen et al. task-trained a connectome-
+constrained network of the optic lobe and it predicted real neural responses (code: flyvis).
+
+End claim: "the male fly's wiring, with learned strengths, plays at Elo X and these regions do
+the work" — or the honest negative: "the wiring can't carry it, and here is where it fails."
+
+## Rules of the game
+
+| Fixed by the connectome | Learned |
+|---|---|
+| neuron set (all traced brain neurons) | non-negative gain per existing connection |
+| edge set (25.6 M, none added) | bias + time constant per cell type |
+| sign per neuron (ACh +, GABA −, Glu −) | linear readout DN rates → move |
+| initial strength = synapse count | |
+
+Not allowed: new neurons/edges, flipped signs, input anywhere but photoreceptors, output from
+anywhere but descending neurons.
+
+Controls (same data, same compute): degree-matched random rewiring; shuffled signs; a plain
+dense net of similar parameter count.
+
+Signal path: Board (8×8, 13 states) → eye (~750 columns) → optic lobe (89,403 neurons) →
+central brain (~41,000) → descending neurons (1,314) → 4,096 from–to logits + 4 promotions,
+masked to legal moves at play time. Recurrent, 32 ticks per move.
+
+## Phases
+
+### 0 — Know the data (done)
+Notes (MALECNS_NOTES.md), annotation table in data/, the Cloud Atlas viewer.
+
+### 1 — Build the digital fly (weeks 1–2) — DONE 2026-09-14 (see flybrain/README.md)
+Result: 144,209 neurons, 21.27 M signed edges; graded input-normalised model at gain 1.5 passes
+both checks (sugar→MN9 z = 4.8 vs 20 controls; light drives only the stimulated eye's motion
+pathway). Caveat: input normalisation makes the motor response small (~1% of peak); learned
+gains (Phase 3) are the fix. CPU only: 0.7 s per tick at batch 128; MPS has no sparse support.
+1. Fetch connectome-weights (traced-only, 508 MB) and body-neurotransmitters (43 MB) from
+   gs://flyem-male-cns/v1.0/connectome-data/flat-connectome/.
+2. Neuron set: Traced, brain side (ol_*, cb_*, visual_*, descending, ascending, brain sensory).
+   Drop the VNC for v1. ~130k neurons, ~20 M edges.
+3. Sparse W (post × pre) = synapse count × sign of presynaptic transmitter. DA/5-HT/OA = 0 in v1.
+4. Rate model: r ← r + (dt/τ)(−r + softplus(W·r + b + I)); dt 5 ms, τ ~20 ms, 32 ticks/move.
+5. PyTorch CSR sparse matmul, batched, BPTT, gradient clipping; spectral scaling at init.
+6. Biology checks before chess: sugar GRNs → proboscis motor neurons in GNG respond (Shiu
+   et al.); one eye stimulated → lobula plate motion cells respond.
+7. Atlas activity mode: 140k cell bodies glow by rate, tick by tick.
+Done when: 130k-neuron forward pass at batch 128 well under 1 s on GPU; both checks pass;
+activity renders.
+
+### 2 — Show it the board (week 3)
+1. Eye map from annotation columns assignedOlHex1/assignedOlHex2 (~750 columns/eye). Map the
+   board to a 24×24 patch of the right eye: 3×3 facets per square.
+2. Piece kind = brightness glyph in the patch; piece colour on R7/R8 colour channels; side to
+   move = global brightness bias.
+3. Inject as photoreceptor currents (~6,100 ol_sensory axons). Fallback: lamina L1/L2.
+4. Linear probe from medulla+lobula at the last tick must recover the board > 99.5% per square
+   with untrained gains. Probe DNs too (baseline).
+Done when: the optic lobe provably carries the whole board.
+
+### 3 — Teach it the rules and good moves (weeks 4–6)
+1. Data: Lichess DB, ≥ 10 M positions (1600–2200), Stockfish depth-10 labels for 1 M; python-chess.
+2. Readout: linear, 1,314 DN rates → 4,096 + 4 logits; unmasked in training, masked at play.
+3. Loss: cross-entropy on target move + value head (W/D/L). AdamW, clipping, T = 32.
+   ~2–10 h per 10 M-position epoch on an RTX 4090-class GPU; 5–10 epochs.
+4. Curriculum: legality (> 99% legal unmasked) → imitation (top-1 ≥ 35%, top-3 ≥ 60% held-out;
+   Maia-class nets reach ~50% top-1) → value head.
+5. Run the three controls with identical budgets.
+Done when: > 99% legal, top-1 ≥ 35%, controls table filled.
+
+### 4 — Make it play (weeks 7–10)
+1. UCI engine wrapper (python-chess), one forward pass per move (~10 ms GPU, ~1 s Mac CPU).
+2. RL vs Stockfish UCI_LimitStrength 1350 → 1600 → 1800: REINFORCE with value baseline or
+   DAgger; keep imitation loss mixed in.
+3. Rate with cutechess-cli, 200-game matches, ordo Elo with error bars. Targets: 100% vs random;
+   ≥ 1200 vs Stockfish-limited. Expectation 1000–1500; < 1000 means the constraint binds.
+Done when: engine binary with a measured rating.
+
+### 5 — Look inside (weeks 11–12)
+1. Ablate each of 108 neuropils; re-measure accuracy/Elo; heat map in the atlas.
+2. Decode across ticks: where/when are from-square, to-square, check first readable?
+3. Learned gains vs synapse counts: near 1 → anatomy did the work; divergent → rewired within
+   the constraint.
+Done when: ablation map, decoding timeline, gains-vs-anatomy figure.
+
+### 6 — Ship the demo (weeks 13–14)
+1. Page: a chessboard with a 3D model of the fly. On each move the fly walks from its resting
+   spot beside the board to the piece, carries it to its destination square (a captured piece
+   is carried off the board first), and walks back to exactly where it started. The Cloud
+   Atlas beside the board shows the brain activity that produced the move; a sidebar lists
+   the candidate moves and the most active regions. Rigged low-poly fly (glTF, walk cycle) in
+   three.js; the walk path is generated from the engine's chosen move.
+2. Inference ~1.3 GFLOP/move: small backend or WebGPU.
+3. Write-up: rules, controls table, rating, ablation map.
+Done when: a stranger can play the fly online and see its brain light up.
+
+## Compute and tools
+
+| Need | Choice | Notes |
+|---|---|---|
+| prototyping, data prep, engine, viewer | Mac, Apple M4, 16 GB | fine for the graph (~250 MB) and small batches; not for training |
+| training (phases 3–5) | 1 rented GPU (4090/A100) | ~50–150 GPU-h, ~$50–300 |
+| model | PyTorch, torch.sparse CSR; flyvis as reference recipe | |
+| chess | python-chess, Stockfish, cutechess-cli, ordo | |
+| positions | Lichess open database | |
+| connectome | gs://flyem-male-cns v1.0 (public, CC-BY) | |
+
+## Risks and fallbacks
+
+- Constraint too tight → per-edge gains + biases; then DA/5-HT/OA edges as learned
+  multiplicative gates (how the mushroom body actually learns); last resort a small % of new
+  edges, reported as a deviation.
+- Recurrent net explodes → spectral radius < 1 at init, clipping, 16 ticks, tanh.
+- Eye can't resolve the board → Phase 2 probe gates everything; enlarge to 4×4 facets, both eyes.
+- Compute creeps → fewer positions, 16 ticks, mixed precision, per-type-pair gains (~11k types)
+  before per-edge (20 M).
+- "Not a real fly" → rules of the game, biology checks, controls table.
+
+## Appendix — the living-fly option
+
+Fly in the loop: tethered fly on an air-supported ball in closed-loop VR (FicTrac + LED
+arena). The engine proposes two candidate moves as two patterns left/right; the fly's turning
+picks one. Operant conditioning with IR heat (the Heisenberg flight-simulator paradigm) teaches
+a pattern preference in an hour or two. Result: a fly that picks the cued pattern, i.e. the
+engine's move, not a fly that plays chess. Needs a fly lab and ~$10–30k of rig. Performance
+piece only, and only after the digital fly has a rating to compare against.
+
+## Sources
+
+- Berg et al., Cell 2026 (MaleCNS). https://male-cns.janelia.org/
+- Shiu et al., "A Drosophila computational brain model reveals sensorimotor processing", Nature 634, 2024.
+- Lappalainen et al., "Connectome-constrained networks predict neural activity across the fly visual system", Nature 634, 2024. https://github.com/TuragaLab/flyvis
+- McIlroy-Young et al., Maia chess, 2020.
+- python-chess, Stockfish, cutechess, Lichess database.

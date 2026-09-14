@@ -1,0 +1,407 @@
+<meta charset="utf-8">
+<title>Chess for the Digital Fly</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #F2F4F7;
+    --surface: #FFFFFF;
+    --ink: #151A22;
+    --muted: #5C6573;
+    --line: rgba(21, 26, 34, 0.12);
+    --line-strong: rgba(21, 26, 34, 0.28);
+    --accent: #1A7F9C;
+    --accent-soft: rgba(26, 127, 156, 0.10);
+    --warn: #B4562E;
+    --warn-soft: rgba(180, 86, 46, 0.10);
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A0C11; --surface: #141821; --ink: #E9E6DD; --muted: #8B909D;
+      --line: rgba(233, 230, 221, 0.12); --line-strong: rgba(233, 230, 221, 0.30);
+      --accent: #8FD3E8; --accent-soft: rgba(143, 211, 232, 0.12);
+      --warn: #E39A6B; --warn-soft: rgba(227, 154, 107, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A0C11; --surface: #141821; --ink: #E9E6DD; --muted: #8B909D;
+    --line: rgba(233, 230, 221, 0.12); --line-strong: rgba(233, 230, 221, 0.30);
+    --accent: #8FD3E8; --accent-soft: rgba(143, 211, 232, 0.12);
+    --warn: #E39A6B; --warn-soft: rgba(227, 154, 107, 0.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+  a { color: var(--accent); }
+  .page { max-width: 1120px; margin: 0 auto; padding: 48px 24px 96px; display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 56px; align-items: start; }
+  .rail { position: sticky; top: 24px; }
+  .rail .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 10px; }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rail a { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 13px; line-height: 1.3; }
+  .rail a:hover { background: var(--accent-soft); }
+  .rail a .n { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .rail a .w { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+  .rail .aux { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  main { max-width: 72ch; }
+
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin: 0 0 14px; }
+  h1 { font-family: var(--display); font-weight: 300; font-size: 46px; line-height: 1.02; letter-spacing: -0.015em; margin: 0 0 18px; text-wrap: balance; }
+  h1 em { font-style: italic; color: var(--accent); }
+  .stand { font-size: 18px; line-height: 1.5; color: var(--ink); margin: 0 0 26px; max-width: 60ch; }
+  .glance { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); padding: 14px 0; margin: 0 0 44px; }
+  .glance div { padding: 0 14px; border-left: 1px solid var(--line); }
+  .glance div:first-child { padding-left: 0; border-left: 0; }
+  .glance b { display: block; font-family: var(--display); font-weight: 500; font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .glance span { font-size: 12px; color: var(--muted); }
+
+  h2 { font-family: var(--display); font-weight: 500; font-size: 27px; line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin: 26px 0 8px; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  .sec { margin: 0 0 48px; }
+  .sec > h2 { margin-bottom: 14px; }
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 0 0 16px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0 0; }
+  .rule { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .rule h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; }
+  .rule ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  .rule li { margin: 0 0 4px; }
+  .rule.learned h4 { color: var(--accent); }
+  .rule.learned { border-color: var(--accent); }
+
+  figure { margin: 22px 0 0; }
+  figure svg { max-width: 100%; height: auto; display: block; color: var(--ink); }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  .phase { margin: 0 0 40px; padding-top: 22px; border-top: 1px solid var(--line-strong); }
+  .ph { display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: baseline; margin-bottom: 10px; }
+  .ph .num { font-family: var(--display); font-weight: 300; font-size: 40px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ph .when { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .ph .when.done { color: var(--accent); }
+  .goal { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 10px; }
+  ol.steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; font-size: 14.5px; }
+  ol.steps li::before { counter-increment: step; content: counter(step); font-family: var(--mono); font-size: 11.5px; color: var(--muted); padding-top: 3px; }
+  ol.steps li b { font-weight: 600; }
+  ol.steps code, .rule code, p code, td code { font-family: var(--mono); font-size: 0.86em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  .done { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14px; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; }
+  .done b { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+  .tablewrap { overflow-x: auto; margin: 10px 0 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; }
+  td.m { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  .risks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .risks li { display: grid; grid-template-columns: 1fr 1.3fr; gap: 14px; font-size: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .risks li .r { color: var(--warn); font-weight: 500; }
+  .risks li .r::before { content: "Risk · "; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+  .risks li .f::before { content: "Fallback · "; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+  .sources { font-size: 13.5px; color: var(--muted); padding-left: 18px; margin: 0; }
+  .sources li { margin-bottom: 4px; }
+
+  @media (max-width: 1000px) {
+    .page { grid-template-columns: 1fr; gap: 24px; padding: 32px 18px 72px; }
+    .rail { position: static; }
+    .rail ol { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+    .rail a { grid-template-columns: auto; padding: 4px 8px; border: 1px solid var(--line); }
+    .rail a .w, .rail .aux, .rail .label { display: none; }
+    .rail a .n::after { content: " ·"; }
+    .rail a { display: flex; gap: 6px; }
+  }
+  @media (max-width: 640px) {
+    h1 { font-size: 36px; }
+    .glance { grid-template-columns: 1fr 1fr; gap: 12px 0; }
+    .glance div:nth-child(3) { border-left: 0; padding-left: 0; }
+    .rules { grid-template-columns: 1fr; }
+    .risks li { grid-template-columns: 1fr; gap: 4px; }
+    .ph { grid-template-columns: 36px 1fr; }
+    .ph .when { grid-column: 2; }
+  }
+</style>
+
+<div class="page">
+  <nav class="rail" aria-label="Phases">
+    <p class="label">Phases</p>
+    <ol>
+      <li><a href="#p0"><span class="n">0</span><span>Know the data<span class="w">done</span></span></a></li>
+      <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
+      <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">week 3</span></span></a></li>
+      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">weeks 4–6</span></span></a></li>
+      <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
+      <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
+      <li><a href="#p6"><span class="n">6</span><span>Ship the demo<span class="w">weeks 13–14</span></span></a></li>
+    </ol>
+    <div class="aux">
+      <ol>
+        <li><a href="#compute"><span class="n">§</span><span>Compute &amp; tools</span></a></li>
+        <li><a href="#risks"><span class="n">§</span><span>Risks &amp; fallbacks</span></a></li>
+        <li><a href="#living"><span class="n">§</span><span>The living-fly option</span></a></li>
+      </ol>
+    </div>
+  </nav>
+
+  <main>
+    <p class="eyebrow">Project plan · MaleCNS v1.0 · September 2026</p>
+    <h1>Chess for the <em>Digital Fly</em></h1>
+    <p class="stand">A living fruit fly will never play chess. Its wiring diagram can be made to try. This plan turns the complete male fly connectome into a trainable neural network with the fly's exact neurons, connections and signs, shows it the board through its own eyes, reads its move off the neurons that command its body, and measures how far that wiring can go.</p>
+
+    <div class="glance">
+      <div><b>6</b><span>phases, about 14 weeks part-time</span></div>
+      <div><b>166,691</b><span>neurons in the connectome</span></div>
+      <div><b>25.6 M</b><span>connections, all kept</span></div>
+      <div><b>1</b><span>rented GPU for training</span></div>
+    </div>
+
+    <section class="sec">
+      <h2>The honest version</h2>
+      <div class="callout warn">
+        <p><b>A real fly can't do this.</b> A fruit fly learns simple associations over minutes: this smell goes with a shock, this visual pattern goes with heat. Each eye gives it roughly 750 image points. There is no route from that to perceiving 64 squares holding 12 kinds of piece, let alone planning a move. The nearest real-fly experiment is described at the end, and it is a performance piece, not chess.</p>
+      </div>
+      <p><b>What can be done</b> is to train the digital fly. The connectome gives us every neuron, every connection between them, and, from the dataset's neurotransmitter predictions, whether each connection excites or inhibits. What it does not give us is the strength of each connection. So we keep all the anatomy fixed and learn only the strengths, then ask whether that wiring can support chess.</p>
+      <p>This is not a fantasy: two 2024 papers in <i>Nature</i> did exactly this kind of modelling on fly connectomes. Shiu and colleagues simulated the whole female brain as a spiking network with synapse counts as weights and reproduced real feeding and grooming circuits. Lappalainen and colleagues built a connectome-constrained network of the visual system, trained it on a task, and found it predicted how real neurons respond. We follow their recipe on a bigger connectome with a stranger task.</p>
+      <p><b>What we will be able to say at the end:</b> either "the male fly's brain wiring, with learned synaptic strengths, plays chess at this rating, and these regions do the work", or the equally publishable negative: "the wiring can't carry it, and here is exactly where it fails."</p>
+    </section>
+
+    <section class="sec">
+      <h2>The rules of the game</h2>
+      <p>These constraints are what make the claim honest. Loosen any of them and it stops being the fly.</p>
+      <div class="rules">
+        <div class="rule">
+          <h4>Fixed by the connectome</h4>
+          <ul>
+            <li>The set of neurons: every traced brain neuron</li>
+            <li>The set of connections: 25.6 M edges, none added</li>
+            <li>The sign of each neuron's output (acetylcholine excites; GABA and glutamate inhibit)</li>
+            <li>The starting strength: the counted synapses</li>
+          </ul>
+        </div>
+        <div class="rule learned">
+          <h4>Learned</h4>
+          <ul>
+            <li>A non-negative gain on each existing connection</li>
+            <li>A bias and a time constant per cell type</li>
+            <li>The linear readout from descending neurons to moves</li>
+          </ul>
+        </div>
+        <div class="rule">
+          <h4>Not allowed</h4>
+          <ul>
+            <li>New neurons or new connections</li>
+            <li>Flipping a sign</li>
+            <li>Input anywhere except the photoreceptors</li>
+            <li>Output from anywhere except the descending neurons</li>
+          </ul>
+        </div>
+        <div class="rule">
+          <h4>Controls that must run alongside</h4>
+          <ul>
+            <li>Same neurons, connections randomly rewired with matched degrees</li>
+            <li>Same wiring, signs shuffled</li>
+            <li>A plain dense network of similar parameter count</li>
+          </ul>
+        </div>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 1000 300" role="img" aria-label="Signal path of the digital fly: the board is rendered as light onto the eye, photoreceptor currents drive the optic lobe, fixed wiring with learned gains carries activity through the central brain to the descending neurons, and a learned linear readout turns their rates into a move. Optic lobe and central brain are recurrent for 32 ticks per move. Training sends the move loss back to the gains and the readout.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+            <marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1A7F9C"/></marker>
+          </defs>
+          <!-- recurrence loops -->
+          <path d="M442,70 C442,34 382,34 382,70" fill="none" stroke="#1A7F9C" stroke-width="1.6" marker-end="url(#ah-acc)"/>
+          <path d="M618,70 C618,34 558,34 558,70" fill="none" stroke="#1A7F9C" stroke-width="1.6" marker-end="url(#ah-acc)"/>
+          <text x="500" y="32" font-size="11" text-anchor="middle" fill="currentColor" opacity="0.75">recurrent · 32 ticks per move</text>
+
+          <!-- boxes -->
+          <g fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="2" y="70" width="116" height="64" rx="7"/>
+            <rect x="178" y="70" width="116" height="64" rx="7"/>
+            <rect x="354" y="70" width="116" height="64" rx="7" stroke="#1A7F9C"/>
+            <rect x="530" y="70" width="116" height="64" rx="7" stroke="#1A7F9C"/>
+            <rect x="706" y="70" width="116" height="64" rx="7"/>
+            <rect x="882" y="70" width="116" height="64" rx="7"/>
+          </g>
+          <g font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">
+            <text x="60" y="107">Board</text>
+            <text x="236" y="99">Eye</text><text x="236" y="116" font-weight="400" font-size="11.5">photoreceptors</text>
+            <text x="412" y="107">Optic lobe</text>
+            <text x="588" y="107">Central brain</text>
+            <text x="764" y="99">Descending</text><text x="764" y="116" font-weight="400" font-size="11.5">neurons</text>
+            <text x="940" y="107">Move</text>
+          </g>
+          <g font-size="11" text-anchor="middle" fill="currentColor" opacity="0.75">
+            <text x="60" y="154">8×8 · 13 states</text>
+            <text x="236" y="154">~750 columns</text>
+            <text x="412" y="154">89,403 neurons</text>
+            <text x="588" y="154">~41,000 neurons</text>
+            <text x="764" y="154">1,314 neurons</text>
+            <text x="940" y="154">4,096 + 4 logits</text>
+          </g>
+
+          <!-- forward arrows -->
+          <g stroke-width="1.6" fill="none">
+            <line x1="118" y1="102" x2="176" y2="102" stroke="currentColor" marker-end="url(#ah)"/>
+            <line x1="294" y1="102" x2="352" y2="102" stroke="currentColor" marker-end="url(#ah)"/>
+            <line x1="470" y1="102" x2="528" y2="102" stroke="#1A7F9C" marker-end="url(#ah-acc)"/>
+            <line x1="646" y1="102" x2="704" y2="102" stroke="#1A7F9C" marker-end="url(#ah-acc)"/>
+            <line x1="822" y1="102" x2="880" y2="102" stroke="#1A7F9C" marker-end="url(#ah-acc)"/>
+          </g>
+          <g font-size="10.5" text-anchor="middle" fill="currentColor">
+            <text x="147" y="88">rendered</text><text x="147" y="99" opacity="0.75">as light</text>
+            <text x="323" y="88">receptor</text><text x="323" y="99" opacity="0.75">currents</text>
+            <text x="499" y="88" fill="#1A7F9C">learned</text><text x="499" y="99" fill="#1A7F9C">gains</text>
+            <text x="675" y="88" fill="#1A7F9C">learned</text><text x="675" y="99" fill="#1A7F9C">gains</text>
+            <text x="851" y="88" fill="#1A7F9C">readout</text><text x="851" y="99" opacity="0.75">legal mask</text>
+          </g>
+
+          <!-- training return -->
+          <path d="M940,134 L940,206 L588,206 L588,138" fill="none" stroke="#1A7F9C" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ah-acc)"/>
+          <text x="764" y="224" font-size="11" text-anchor="middle" fill="currentColor" opacity="0.75">training: move loss → gradients on every gain and the readout</text>
+
+          <!-- legend -->
+          <g font-size="11" fill="currentColor">
+            <line x1="2" y1="270" x2="34" y2="270" stroke="currentColor" stroke-width="1.6"/><text x="42" y="274">fixed by the connectome</text>
+            <line x1="212" y1="270" x2="244" y2="270" stroke="#1A7F9C" stroke-width="1.6"/><text x="252" y="274">learned</text>
+            <line x1="330" y1="270" x2="362" y2="270" stroke="#1A7F9C" stroke-width="1.4" stroke-dasharray="5 4"/><text x="370" y="274">training signal</text>
+          </g>
+        </svg>
+        <figcaption>One move: the board becomes light on the eye, activity runs through the fly's real wiring for 32 ticks, and the move is read from the 1,314 descending neurons that carry every command from the real fly's brain to its body. Only the coloured parts change during training.</figcaption>
+      </figure>
+    </section>
+
+    <section class="phase" id="p0">
+      <div class="ph"><span class="num">0</span><h2>Know the data</h2><span class="when done">done</span></div>
+      <p class="goal">Understand what the connectome contains and how to reach it.</p>
+      <ol class="steps">
+        <li><span>Reference notes on the dataset, the papers, the bucket layout and the annotation schema (<code>MALECNS_NOTES.md</code>).</span></li>
+        <li><span>The v1.0 neuron annotation table downloaded and inspected: 165,122 traced neurons, 11,751 types, superclasses, cell-body positions.</span></li>
+        <li><span>The Cloud Atlas: a 3D map of all 108 neuropils and 140,024 cell bodies. It becomes the activity viewer in Phase 1.</span></li>
+      </ol>
+    </section>
+
+    <section class="phase" id="p1">
+      <div class="ph"><span class="num">1</span><h2>Build the digital fly</h2><span class="when done">done · 14 Sep 2026</span></div>
+      <p class="goal">A runnable, differentiable simulation of the brain, wired exactly as in MaleCNS v1.0, that behaves like a fly before it has learned anything.</p>
+      <div class="callout">
+        <p><b>Result.</b> 144,209 neurons and 21.27 million signed edges, built from the public weight and neurotransmitter tables. A graded model with each neuron's inputs normalised and a global gain of 1.5 passes both checks: sugar on the labellum drives the feeding motor neuron MN9 above rest with a z-score of 4.8 against 20 random sensory controls, and light on the right eye drives the right eye's lamina, T4/T5 and lobula plate while the left stays silent. The activity of both experiments plays back in the Cloud Atlas. Two honest caveats: the motor response is small (about 1% of the peak) because input normalisation under-weights strong inputs onto neurons with thousands of synapses, which learned gains in Phase 3 will fix; and the Mac's GPU has no sparse-matrix support, so the forward pass runs on CPU at 0.7 s per tick for a batch of 128, confirming that training needs a rented CUDA GPU. Details in <code>flybrain/README.md</code>.</p>
+      </div>
+      <ol class="steps">
+        <li><span><b>Fetch the tables.</b> From the public bucket: the neuron-to-neuron weights (traced-only file, 508 MB), the per-neuron neurotransmitter predictions (43 MB), and the annotations you already have.</span></li>
+        <li><span><b>Pick the neuron set.</b> Traced neurons on the brain side: optic lobe, central brain, visual projection, descending and ascending neurons, brain sensory axons. Leave the nerve cord out of version one. Roughly 130,000 neurons and 20 million edges.</span></li>
+        <li><span><b>Assemble the weight matrix.</b> Sparse, post × pre. Entry = synapse count × the sign of the presynaptic neuron's predicted transmitter. Dopamine, serotonin and octopamine neurons are modulatory, not fast; set them to zero in version one and revisit in Phase 3's fallbacks.</span></li>
+        <li><span><b>Choose the neuron model.</b> A rate unit with leak: <code>r ← r + (dt/τ)(−r + softplus(W·r + b + I))</code>, dt = 5 ms, τ about 20 ms, 32 ticks per move. Rates rather than spikes so the whole thing is differentiable.</span></li>
+        <li><span><b>Implement it.</b> PyTorch, compressed-sparse-row matrix multiply, batched over positions, backpropagation through time, gradient clipping. Scale the matrix at initialisation so the untrained network neither dies out nor explodes.</span></li>
+        <li><span><b>Biology check, before any chess.</b> Stimulate the sugar-sensing taste neurons: the proboscis motor neurons in the gnathal ganglion should respond, the test Shiu and colleagues used. Stimulate one eye: motion-sensitive cells in the lobula plate should respond. If either fails, the matrix is assembled wrong.</span></li>
+        <li><span><b>Wire it into the atlas.</b> An activity mode in the Cloud Atlas: the 140,024 cell bodies glow by firing rate, tick by tick. The positions and body IDs are already in the viewer's data.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>A forward pass over 130,000 neurons runs at batch size 128 in well under a second on a GPU, both biology checks pass, and activity renders in the atlas.</span></div>
+    </section>
+
+    <section class="phase" id="p2">
+      <div class="ph"><span class="num">2</span><h2>Show it the board</h2><span class="when">week 3</span></div>
+      <p class="goal">The board reaches the visual system through the fly's own eye, and the visual system provably represents all of it.</p>
+      <ol class="steps">
+        <li><span><b>Use the real eye map.</b> The annotation table's <code>assignedOlHex1</code> and <code>assignedOlHex2</code> columns give every optic-lobe column its hexagonal position on the eye, about 750 columns per eye. Map the 8×8 board onto a 24×24 patch of the right eye so each square covers 3×3 facets.</span></li>
+        <li><span><b>Encode the pieces as light.</b> Piece kind as a small brightness glyph inside its 3×3 patch; colour of the piece on the eye's colour channels (the R7 and R8 receptors see ultraviolet and blue versus green); side to move as a global brightness bias.</span></li>
+        <li><span><b>Inject as photoreceptor currents</b> into the roughly 6,100 photoreceptor axons in the dataset. If photoreceptor coverage of the chosen eye turns out incomplete, inject one layer in, at the lamina L1 and L2 cells, and say so.</span></li>
+        <li><span><b>Probe it.</b> Train a linear readout from medulla and lobula activity at the final tick to reconstruct all 64 squares. With untrained gains it must recover the board at better than 99.5% square accuracy. Then probe the descending neurons the same way to record how much of the board reaches them before any training.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>The optic lobe provably carries the whole board. Nothing after this phase is worth running until it does.</span></div>
+    </section>
+
+    <section class="phase" id="p3">
+      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">weeks 4–6</span></div>
+      <p class="goal">Given a board, the descending neurons produce a legal and plausible move.</p>
+      <ol class="steps">
+        <li><span><b>Data.</b> The Lichess open database: at least 10 million positions from games rated 1600 to 2200, plus Stockfish best moves at depth 10 for a 1-million-position subset. Parse and check legality with python-chess.</span></li>
+        <li><span><b>Readout.</b> One linear layer from the 1,314 descending-neuron rates to 4,096 from-square × to-square logits plus 4 promotion logits. Train it unmasked so legality has to be learned; mask to legal moves only when playing.</span></li>
+        <li><span><b>Loss and optimiser.</b> Cross-entropy on the target move, plus an auxiliary value head on the same rates predicting win, draw or loss. AdamW, clipped gradients, 32 ticks. Expect 2 to 10 hours per 10-million-position epoch on one RTX 4090-class GPU, and 5 to 10 epochs.</span></li>
+        <li><span><b>Curriculum.</b> First legality alone: predict any legal move, target above 99% legal without the mask. Then imitation of the engine's best move: target top-1 at or above 35% and top-3 at or above 60% on held-out positions. Small conventional networks trained to imitate humans reach about 50% top-1, so 35% under the fly's constraints would be a strong result.</span></li>
+        <li><span><b>Run the three controls</b> from the rules of the game with identical data and compute. This table is the scientific content of the project; keep it from day one.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>Above 99% legal moves, top-1 at or above 35% on held-out positions, and the controls table is filled in.</span></div>
+    </section>
+
+    <section class="phase" id="p4">
+      <div class="ph"><span class="num">4</span><h2>Make it play</h2><span class="when">weeks 7–10</span></div>
+      <p class="goal">A rated chess engine whose entire policy is the fly's brain.</p>
+      <ol class="steps">
+        <li><span><b>Wrap it as a UCI engine</b> so any chess program can run it: a python-chess UCI loop, one forward pass per move, about 10 ms on a GPU or around a second on your Mac's CPU.</span></li>
+        <li><span><b>Fine-tune by playing.</b> Reinforcement learning against Stockfish with its strength limited, climbing from Elo 1350 to 1600 to 1800: REINFORCE with the value head as baseline, or DAgger using Stockfish's move as the correction. Keep imitation loss mixed in so it does not forget legality.</span></li>
+        <li><span><b>Rate it properly.</b> cutechess-cli, 200-game matches against limited-strength Stockfish and against a random mover, Elo with error bars from ordo. Targets: 100% against random, at or above 1200 against Stockfish-limited. Honest expectation: somewhere between 1000 and 1500. Below 1000 means the wiring constraint binds, which is a finding, not a failure.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>An engine binary exists with a measured rating and error bars.</span></div>
+    </section>
+
+    <section class="phase" id="p5">
+      <div class="ph"><span class="num">5</span><h2>Look inside</h2><span class="when">weeks 11–12</span></div>
+      <p class="goal">Find out which parts of the fly's brain the chess lives in, and whether the anatomy or the training did the work.</p>
+      <ol class="steps">
+        <li><span><b>Ablate by region.</b> Silence each of the 108 neuropils in turn and re-measure move accuracy and rating. Render the losses as a heat map in the Cloud Atlas: the mushroom body, the central complex and the lateral horn are the interesting candidates.</span></li>
+        <li><span><b>Decode across time.</b> At each tick, which regions carry the from-square, the to-square, and whether the king is in check? Where is the chosen move first readable?</span></li>
+        <li><span><b>Compare gains to anatomy.</b> If the learned gains stay close to 1, the counted synapses did most of the work. If they diverge wildly, the network rewired itself within the constraint. Either is worth reporting.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>An ablation map, a decoding timeline and a gains-versus-anatomy figure exist.</span></div>
+    </section>
+
+    <section class="phase" id="p6">
+      <div class="ph"><span class="num">6</span><h2>Ship the demo</h2><span class="when">weeks 13–14</span></div>
+      <p class="goal">Anyone can play the fly in a browser, watch it think, and watch it move the pieces itself.</p>
+      <ol class="steps">
+        <li><span><b>The page.</b> A chessboard with a 3D model of the fly beside it. On each move the fly walks from its resting spot to the piece, carries it to its destination square (a captured piece is carried off the board first), and walks back to exactly where it started. The Cloud Atlas next to the board shows the brain activity that produced the move; a sidebar lists the candidate moves and the most active regions. A rigged low-poly fly with a walk cycle in three.js, its path generated from the engine's chosen move.</span></li>
+        <li><span><b>Inference.</b> About 20 million multiply-adds per tick, 32 ticks, so roughly 1.3 billion operations per move: a small backend, or WebGPU in the browser.</span></li>
+        <li><span><b>Write it up.</b> The rules of the game, the controls table, the rating, the ablation map. That write-up is the real product.</span></li>
+      </ol>
+      <div class="done"><b>Done when</b><span>A stranger can play the fly online and see its brain light up.</span></div>
+    </section>
+
+    <section class="sec" id="compute">
+      <h2>Compute and tools</h2>
+      <div class="tablewrap">
+        <table>
+          <tr><th>Need</th><th>Choice</th><th>Notes</th></tr>
+          <tr><td>Prototyping, data prep, the engine, the viewer</td><td class="m">your Mac · Apple M4 · 16 GB</td><td>Enough for the graph (about 250 MB) and small-batch forward passes. Not enough for training: sparse operations on Apple GPUs are limited and 16 GB is tight for backpropagation through 32 ticks.</td></tr>
+          <tr><td>Training (Phases 3–5)</td><td class="m">1 rented GPU · RTX 4090 / A100 class</td><td>Estimated 50 to 150 GPU-hours in total, roughly $50 to $300 at current rental prices.</td></tr>
+          <tr><td>Model code</td><td class="m">PyTorch · torch.sparse CSR</td><td>flyvis from the Turaga lab is the reference implementation of connectome-constrained training; borrow its recipe, not its optic-lobe-only scope.</td></tr>
+          <tr><td>Chess</td><td class="m">python-chess · Stockfish · cutechess-cli · ordo</td><td>Move generation and legality, the sparring partner, match running, rating.</td></tr>
+          <tr><td>Positions</td><td class="m">Lichess open database</td><td>Billions of rated games, free. Sample by rating band.</td></tr>
+          <tr><td>Connectome</td><td class="m">gs://flyem-male-cns · v1.0</td><td>Public, no login, CC-BY. Weights, transmitters, annotations, eye map.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="sec" id="risks">
+      <h2>Risks and fallbacks</h2>
+      <ul class="risks">
+        <li><span class="r">The constraint is too tight and the fly never beats random.</span><span class="f">First per-edge gains plus per-type biases. Then let the dopamine, serotonin and octopamine connections act as learned multiplicative gates, which is literally how the fly's mushroom body learns. Last resort, allow a small percentage of new edges and report it as a deviation from the rules.</span></li>
+        <li><span class="r">A 130,000-unit recurrent network explodes during training.</span><span class="f">Scale the matrix's spectral radius below 1 at initialisation, clip gradients, shorten to 16 ticks, swap softplus for tanh.</span></li>
+        <li><span class="r">The eye can't resolve the board.</span><span class="f">750 columns are enough for 64 squares with glyphs, but empty versus occupied must be robust. The Phase 2 probe gates everything after it; if it fails, enlarge each square to 4×4 facets and use both eyes.</span></li>
+        <li><span class="r">Compute creeps past the budget.</span><span class="f">Fewer positions, 16 ticks, mixed precision, and a cheaper first pass with one gain per pair of cell types (about 11,000 types) instead of one per edge (20 million).</span></li>
+        <li><span class="r">"That's not a real fly."</span><span class="f">Every reader will say it. Pre-empt it with the rules of the game, the biology checks in Phase 1, and the controls table from Phase 3. The claim is about the wiring, and the wiring is real.</span></li>
+      </ul>
+    </section>
+
+    <section class="sec" id="living">
+      <h2>The living-fly option</h2>
+      <p>If a real fly has to be involved, the nearest honest experiment is a fly in the loop. A tethered fly walks on an air-supported ball inside a closed-loop virtual-reality arena. The engine proposes two candidate moves as two visual patterns, left and right; the fly's turning picks one. Operant conditioning with infrared heat, the classic flight-simulator paradigm, can teach a fly to prefer a pattern within an hour or two.</p>
+      <p>What you get is a fly that reliably picks the cued pattern, which is the engine's move, not a fly that plays chess. It needs a fly lab and roughly $10,000 to $30,000 of rig. Worth doing only as a performance piece, and only after the digital fly has a rating to compare it to.</p>
+    </section>
+
+    <section class="sec">
+      <h2>Sources</h2>
+      <ol class="sources">
+        <li>Berg et al., "Sexual dimorphism in the complete Drosophila male central nervous system connectome", <i>Cell</i>, September 2026. Data at <a href="https://male-cns.janelia.org/">male-cns.janelia.org</a>.</li>
+        <li>Shiu et al., "A Drosophila computational brain model reveals sensorimotor processing", <i>Nature</i> 634, 2024. Whole-brain simulation from a connectome, validated on feeding and grooming.</li>
+        <li>Lappalainen et al., "Connectome-constrained networks predict neural activity across the fly visual system", <i>Nature</i> 634, 2024. Task-trained connectome model; code at <a href="https://github.com/TuragaLab/flyvis">github.com/TuragaLab/flyvis</a>.</li>
+        <li>McIlroy-Young et al., "Aligning superhuman AI with human behavior: chess as a model system" (Maia), 2020. The reference point for move-imitation accuracy.</li>
+        <li>Tools: <a href="https://python-chess.readthedocs.io/">python-chess</a>, <a href="https://stockfishchess.org/">Stockfish</a>, <a href="https://github.com/cutechess/cutechess">cutechess</a>, <a href="https://database.lichess.org/">Lichess database</a>.</li>
+      </ol>
+    </section>
+  </main>
+</div>

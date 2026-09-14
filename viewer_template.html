@@ -1,0 +1,602 @@
+<meta charset="utf-8">
+<title>Male CNS Cloud Atlas</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #0A0C11;
+    --panel: rgba(20, 24, 33, 0.88);
+    --panel-solid: #141821;
+    --line: rgba(233, 230, 221, 0.10);
+    --text: #E9E6DD;
+    --muted: #8B909D;
+    --accent: #8FD3E8;
+    --accent-ink: #0A0C11;
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ground); color: var(--text); font-family: var(--body); font-size: 13px; line-height: 1.45; overflow: hidden; }
+  canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .hud { position: fixed; z-index: 2; }
+  .brand { top: 20px; left: 20px; max-width: min(320px, calc(100vw - 250px)); pointer-events: none; }
+  .brand h1 { font-family: var(--display); font-weight: 300; font-size: 30px; line-height: 1.05; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+  .brand h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
+  .brand p { margin: 0; color: var(--muted); font-size: 12px; max-width: 34ch; }
+  .brand .stats { display: flex; gap: 18px; margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .brand .stats b { display: block; color: var(--text); font-weight: 500; font-size: 14px; }
+
+  .legend { top: 200px; left: 20px; bottom: 84px; width: 292px; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+  .legend header { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .legend header .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .legend header .actions { display: flex; gap: 4px; }
+  .legend .scroll { overflow-y: auto; padding: 6px 6px 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+  .group { margin-bottom: 4px; }
+  .group-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px; cursor: pointer; user-select: none; }
+  .group-head .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .group-head .name { font-weight: 600; font-size: 12px; flex: 1; }
+  .group-head .n { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .group-head input { accent-color: var(--accent); margin: 0; }
+  .region { display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 26px; border-radius: 5px; cursor: pointer; }
+  .region:hover, .region:focus-within { background: rgba(255,255,255,0.05); }
+  .region .sw { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
+  .region .name { flex: 1; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .region .vol { font-family: var(--mono); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .region input { accent-color: var(--accent); margin: 0; width: 12px; height: 12px; }
+  .region.off .name, .region.off .vol { color: var(--muted); opacity: 0.6; }
+
+  .controls { bottom: 20px; left: 20px; right: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .ctl { display: flex; align-items: center; gap: 8px; }
+  .ctl .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { background: transparent; border: 0; color: var(--text); font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button:hover { background: rgba(255,255,255,0.06); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 11px; padding: 3px 8px; border-radius: 5px; cursor: pointer; }
+  button.ghost:hover { background: rgba(255,255,255,0.06); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type=range] { accent-color: var(--accent); width: 110px; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+  .toggle input { accent-color: var(--accent); margin: 0; }
+  .readout { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+  .readout b { color: var(--text); font-weight: 500; }
+
+  .hint { top: 20px; right: 20px; display: none; text-align: right; color: var(--muted); font-size: 11px; pointer-events: none; max-width: 240px; }
+  .hint kbd { font-family: var(--mono); font-size: 10px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--text); }
+
+  .loading { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; background: var(--ground); color: var(--muted); font-family: var(--mono); font-size: 12px; transition: opacity .4s; }
+  .loading.done { opacity: 0; pointer-events: none; }
+
+
+  /* explainer + info card */
+  .about-btn { position: fixed; top: 20px; right: 20px; z-index: 3; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .about-btn:hover { background: rgba(255,255,255,0.08); }
+  .about-btn .q { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-style: italic; font-size: 12px; display: grid; place-items: center; }
+  .about { position: fixed; top: 60px; right: 20px; bottom: 84px; width: 380px; z-index: 3; background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+  .about[hidden] { display: none; }
+  .about header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .about header h2 { margin: 0; font-family: var(--display); font-weight: 300; font-size: 20px; letter-spacing: -0.01em; }
+  .about header h2 em { font-style: italic; color: var(--accent); }
+  .about .body { overflow-y: auto; padding: 4px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+  .about h3 { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin: 18px 0 6px; font-weight: 600; }
+  .about p { margin: 0 0 9px; font-size: 12.5px; line-height: 1.55; color: var(--text); max-width: 60ch; }
+  .about p.small { color: var(--muted); font-size: 11.5px; }
+  .about .scale { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin: 4px 0 8px; }
+  .about .scale b { color: var(--text); font-weight: 500; text-align: right; }
+  .about .fam { display: flex; gap: 8px; align-items: baseline; margin: 0 0 6px; font-size: 12px; }
+  .about .fam .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; position: relative; top: 0; }
+  .about .fam span.d { color: var(--muted); }
+  .about a { color: var(--accent); }
+  .group-desc { padding: 0 8px 4px 26px; font-size: 11px; color: var(--muted); line-height: 1.4; max-width: 34ch; }
+  .info { position: fixed; z-index: 3; right: 20px; bottom: 84px; width: 340px; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-left: 3px solid var(--info-color, var(--accent)); border-radius: 10px; padding: 12px 14px; }
+  .info[hidden] { display: none; }
+  .info .t { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .info .t b { font-family: var(--display); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; }
+  .info .t span { font-size: 11px; color: var(--muted); }
+  .info p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.5; }
+  .info .m { font-family: var(--mono); font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .soma-key { position: fixed; z-index: 3; right: 20px; bottom: 84px; width: 300px; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; }
+  .soma-key[hidden] { display: none; }
+  .soma-key h4 { margin: 0 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; }
+  .soma-key p { margin: 0 0 8px; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  .soma-key .row { display: grid; grid-template-columns: 10px auto 1fr; gap: 3px 8px; align-items: center; font-size: 11.5px; }
+  .soma-key .row .sw { width: 8px; height: 8px; border-radius: 50%; }
+  .soma-key .row .n { font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: right; }
+  @media (min-width: 1000px) { .hint { display: block; } }
+  @media (max-width: 900px) { .about { width: min(380px, calc(100vw - 40px)); } .info, .soma-key { width: min(340px, calc(100vw - 40px)); } }
+
+  @media (max-width: 760px) {
+    .brand { max-width: 220px; } .brand h1 { font-size: 22px; } .brand p { display: none; }
+    .legend { width: 220px; top: 150px; bottom: 140px; }
+    .hint { display: none; }
+    input[type=range] { width: 80px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .loading { transition: none; } }
+</style>
+
+<canvas id="gl" aria-label="3D point cloud of the male Drosophila central nervous system"></canvas>
+<div class="loading" id="loading">decoding point cloud…</div>
+
+<div class="hud brand">
+  <h1>Male CNS <em>Cloud Atlas</em></h1>
+  <p>Every neuropil of one male fruit fly's brain and nerve cord, sampled from the MaleCNS v1.0 region maps, plus the position of every traced neuron's cell body.</p>
+  <div class="stats">
+    <div><b id="st-regions">–</b>neuropils</div>
+    <div><b id="st-points">–</b>cloud points</div>
+    <div><b id="st-somas">–</b>cell bodies</div>
+  </div>
+</div>
+
+<div class="hud hint">Drag to orbit · scroll to zoom · <kbd>shift</kbd>+drag to pan · hover a region to isolate it</div>
+
+<aside class="hud legend" aria-label="Regions">
+  <header>
+    <span class="label">Regions</span>
+    <span class="actions">
+      <button class="ghost" id="all-on">All</button>
+      <button class="ghost" id="all-off">None</button>
+    </span>
+  </header>
+  <div class="scroll" id="legend"></div>
+</aside>
+
+
+<button class="about-btn" id="about-btn" aria-expanded="false" aria-controls="about"><span class="q">?</span>What am I looking at?</button>
+
+<aside class="about" id="about" hidden aria-label="Explanation">
+  <header><h2>A fly's nervous system, <em>as a cloud</em></h2><button class="ghost" id="about-close">Close</button></header>
+  <div class="body">
+    <h3>The animal</h3>
+    <p>This is the complete central nervous system of one adult male fruit fly (<i>Drosophila melanogaster</i>). The rounded upper part is the <b>brain</b>, which sits in the head. The long tail is the <b>ventral nerve cord</b>, the fly's equivalent of a spinal cord, which runs through the thorax and abdomen and drives the legs, wings and body. A narrow <b>neck connective</b> joins them. The whole thing is about a millimetre long.</p>
+
+    <h3>What a connectome is</h3>
+    <p>A connectome is a complete wiring diagram: every neuron and every connection between them. To make this one, the tissue was shaved away 8 nanometres at a time (a human hair is about 10,000 times thicker) and each face was photographed with an electron microscope. AI from Google Research then traced every neuron through the stack of images, and people spent roughly 44 person-years checking and correcting the result.</p>
+    <div class="scale"><b>166,691</b><span>neurons</span><b>125 M</b><span>synaptic connections</span><b>11,691</b><span>distinct cell types</span><b>0.082 mm³</b><span>tissue volume imaged</span></div>
+
+    <h3>Neuropils and cell bodies</h3>
+    <p>Insect neurons are arranged inside-out compared with ours. The <b>cell bodies</b> (the part with the nucleus) sit in a thin rind on the outside. The inside is <b>neuropil</b>: a dense felt of axons and dendrites where all the actual connections are made. Anatomists divide this neuropil into named compartments, and each compartment tends to do a recognisable job.</p>
+    <p>Each coloured cloud here is one such compartment. The points are random samples of its volume, not individual neurons, so a bigger, denser cloud means a bigger compartment. Switch on <b>Cell bodies</b> in the bar below to add the true position of every traced neuron's cell body; you will see them wrap the outside like a shell.</p>
+
+    <h3>How to read the colours</h3>
+    <p>Compartments that belong to the same system share a hue family. Left and right copies of a paired region share one colour.</p>
+    <div id="about-fams"></div>
+
+    <h3>Getting oriented</h3>
+    <p><b>Anterior</b> looks at the fly face-on: the two big blue lobes are the optic lobes behind each compound eye, and the nerve cord is foreshortened behind. <b>Dorsal</b> looks down from above. <b>Lateral</b> shows the full length from the side. Hover any region in the list on the left to isolate it and read what it does.</p>
+
+    <p class="small">Data: MaleCNS v1.0 region maps and neuron annotations, Janelia FlyEM, Cambridge and Google Research (Berg et al., <i>Cell</i>, 2026), CC-BY. Brain compartments sampled at 1 µm, nerve cord at 2 µm.</p>
+  </div>
+</aside>
+
+<div class="info" id="info" hidden>
+  <div class="t"><b id="info-name"></b><span id="info-fam"></span></div>
+  <p id="info-desc"></p>
+  <div class="m" id="info-meta"></div>
+</div>
+
+<div class="soma-key" id="soma-key" hidden>
+  <h4>Cell bodies, by neuron class</h4>
+  <p>Each dot is one neuron's cell body. The colour says what kind of neuron it is: where it lives and which way it sends signals.</p>
+  <div class="row" id="soma-rows"></div>
+</div>
+
+<div class="hud controls">
+  <div class="ctl"><span class="label">View</span>
+    <span class="seg" id="views">
+      <button data-view="anterior" aria-pressed="false">Anterior</button>
+      <button data-view="dorsal" aria-pressed="false">Dorsal</button>
+      <button data-view="lateral" aria-pressed="false">Lateral</button>
+      <button data-view="iso" aria-pressed="true">3/4</button>
+    </span>
+  </div>
+  <div class="ctl"><span class="label">Layers</span>
+    <label class="toggle"><input type="checkbox" id="layer-roi" checked> Neuropils</label>
+    <label class="toggle"><input type="checkbox" id="layer-soma"> Cell bodies</label>
+  </div>
+  <div class="ctl"><span class="label">Point</span><input type="range" id="psize" min="0.4" max="4" step="0.1" value="1.6" aria-label="Point size"></div>
+  <div class="ctl"><span class="label">Glow</span><input type="range" id="glow" min="0.15" max="1" step="0.05" value="0.55" aria-label="Point opacity"></div>
+  <label class="toggle"><input type="checkbox" id="spin" checked> Slow orbit</label>
+  <div class="ctl"><span class="label">Brain activity</span>
+    <span class="seg" id="act">
+      <button data-act="off" aria-pressed="true">Off</button>
+      <button data-act="sugar" aria-pressed="false">Sugar taste</button>
+      <button data-act="light" aria-pressed="false">Light, right eye</button>
+    </span>
+    <button class="ghost" id="act-play" hidden aria-label="Play or pause">Pause</button>
+    <input type="range" id="act-tick" min="0" max="47" step="1" value="0" hidden aria-label="Tick">
+  </div>
+  <div class="readout" id="readout">hover a region</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const ACT = /*__ACTIVITY__*/null;
+
+/* ---------- anatomy → colour families ---------- */
+const FAMILIES = [
+  { key: "optic",   name: "Optic lobes",            hue: 205, match: /^(ME|LO|LOP|LA|AME)\(/, desc: "Vision. One lobe behind each compound eye; together they hold more than half of all the fly's neurons." },
+  { key: "mb",      name: "Mushroom body",          hue: 32,  match: /^(CA|PED|aL|a'L|bL|b'L|gL)\(/, desc: "Learning and memory, especially of smells. Kenyon cells enter at the calyx, run down the stalk and branch into the lobes." },
+  { key: "cx",      name: "Central complex",        hue: 50,  match: /^(EB|FB|PB|NO|AB)/, desc: "Navigation. Keeps track of which way the fly is facing and turns goals into steering. Also involved in sleep." },
+  { key: "al",      name: "Antennal lobe",          hue: 340, match: /^AL\(/, desc: "Smell, first stage. Odour signals from the antennae are sorted here before going to memory and instinct centres." },
+  { key: "lh",      name: "Lateral horn & superior protocerebrum", hue: 270, match: /^(LH|SLP|SIP|SMP)\(/, desc: "Instinct and internal state. Innate reactions to smells, plus hunger, sleep and hormone circuits." },
+  { key: "vlp",     name: "Ventrolateral protocerebrum", hue: 290, match: /^(AVLP|PVLP|PLP|WED|AOTU)\(/, desc: "Where seeing and hearing meet action. Visual and auditory streams converge and many command neurons start here." },
+  { key: "central", name: "Central & periesophageal", hue: 165, match: /^(CRE|LAL|BU|ICL|IB|ATL|SCL|SPS|IPS|GOR|VES|EPA|FLA|CAN|PRW|SAD|CRN)/, desc: "Relay and motor regions around the middle of the brain and the gullet; many neurons that send commands down to the body pass through here." },
+  { key: "gng",     name: "Gnathal ganglion",       hue: 120, match: /^GNG/, desc: "The fly's brainstem. Taste, feeding, and control of the mouthparts and head; also the first stop for signals coming up from the body." },
+  { key: "cv",      name: "Cervical connective",    hue: 95,  match: /^CV-/, desc: "The neck cable. Every axon travelling between brain and nerve cord is bundled through here." },
+  { key: "leg",     name: "Leg neuropils",          hue: 8,   match: /^LegNp/, desc: "Walking. One compartment per leg (three pairs: front, middle, hind) with its sensors and the motor circuits that move it." },
+  { key: "tct",     name: "Tectulum (neck, wing, haltere)", hue: 185, match: /Tct/, desc: "Flight and posture. The upper layers of the thorax handle the neck, the wings and the halteres, the fly's gyroscopes." },
+  { key: "vac",     name: "Ventral association centers", hue: 140, match: /^mVAC/, desc: "Body sense. Where position sensors in the legs report in, one centre per leg segment." },
+  { key: "abd",     name: "Abdominal & ovoid",      hue: 20,  match: /^(ANm|Ov)/, desc: "The abdomen: gut, reproduction and, in the male, courtship song and mating circuits." },
+];
+
+/* plain-language notes for every compartment (left/right pairs share one entry) */
+const REGION_INFO = {
+  "ME": "Medulla. The largest visual compartment. Colour, motion and edges are worked out here in about 800 columns, one for each facet of the eye.",
+  "LO": "Lobula. Detects visual features: moving objects, looming threats, and potential mates.",
+  "LOP": "Lobula plate. Senses wide-field motion, telling the fly how the whole scene is sliding as it turns or flies.",
+  "LA": "Lamina. The first layer behind the retina. Photoreceptors land here and contrast is sharpened before signals go deeper.",
+  "AME": "Accessory medulla. A small visual hub next to the medulla and home of the clock neurons that set the fly's daily rhythm.",
+  "CA": "Calyx. The input end of the mushroom body. Smell signals arrive here and are handed to thousands of Kenyon cells.",
+  "PED": "Pedunculus. The stalk of the mushroom body; Kenyon cell axons run through it on their way to the lobes.",
+  "aL": "Alpha lobe. Mushroom body output lobe linked to long-term memory.",
+  "a'L": "Alpha-prime lobe. Mushroom body lobe involved in intermediate-term memory.",
+  "bL": "Beta lobe. Mushroom body output lobe linked to long-term memory.",
+  "b'L": "Beta-prime lobe. Mushroom body lobe involved in intermediate-term memory.",
+  "gL": "Gamma lobe. The mushroom body lobe most associated with short-term memory.",
+  "EB": "Ellipsoid body. A ring-shaped compass: a bump of activity moves around it as the fly turns, tracking its heading.",
+  "FB": "Fan-shaped body. A layered structure that combines heading with goals to steer, and is also central to sleep.",
+  "PB": "Protocerebral bridge. A handlebar-shaped stage where the heading signal is organised before it reaches the ellipsoid body.",
+  "NO": "Noduli. Small paired lobes under the fan-shaped body that feed in the fly's own turning and speed.",
+  "AB": "Asymmetric body. A tiny structure that is usually larger on one side; linked to long-term memory.",
+  "AL": "Antennal lobe. The first stop for smell. Each of its roughly 50 ball-shaped units collects one kind of odour receptor.",
+  "LH": "Lateral horn. Innate, unlearned reactions to smells: approach this, avoid that.",
+  "SLP": "Superior lateral protocerebrum. Higher-order integration of smell, taste and learned associations.",
+  "SIP": "Superior intermediate protocerebrum. Mushroom body outputs and dopamine neurons meet here; learning and motivation.",
+  "SMP": "Superior medial protocerebrum. An internal-state hub for hunger, sleep and hormone-releasing neurons.",
+  "AVLP": "Anterior ventrolateral protocerebrum. A big multisensory hub where hearing (including courtship song) and vision converge.",
+  "PVLP": "Posterior ventrolateral protocerebrum. Visual-to-motor integration; many descending command neurons begin here.",
+  "PLP": "Posterior lateral protocerebrum. Receives lobula output; processes visual objects and looming.",
+  "WED": "Wedge. Hearing and wind sensing from the antennae.",
+  "AOTU": "Anterior optic tubercle. Relays visual information, including sky polarisation and small objects, toward the navigation centre.",
+  "BU": "Bulb. The relay through which sky-compass cues enter the ellipsoid body.",
+  "LAL": "Lateral accessory lobe. The output of the navigation centre; turns heading decisions into steering commands.",
+  "CRE": "Crepine. Wraps the mushroom body lobes and carries their outputs onward.",
+  "ICL": "Inferior clamp. Grips the mushroom body stalk; a mixed integration area.",
+  "SCL": "Superior clamp. Integration area wrapping the mushroom body.",
+  "IB": "Inferior bridge. A midline region below the central complex.",
+  "ATL": "Antler. A small central region on the path from mushroom body output to the rest of the brain.",
+  "IPS": "Inferior posterior slope. Rich in descending neurons that send commands down to the nerve cord.",
+  "SPS": "Superior posterior slope. Motor and descending pathway region at the back of the brain.",
+  "GOR": "Gorget. A region around the gullet; part of the descending motor circuitry.",
+  "VES": "Vest. A region around the gullet with walking- and leg-related descending neurons.",
+  "EPA": "Epaulette. A region beside the gullet through which motor and descending pathways pass.",
+  "FLA": "Flange. Around the gullet; involved in feeding and taste pathways.",
+  "CAN": "Cantle. A small region beside the gullet.",
+  "PRW": "Prow. The front of the gnathal ganglion; taste and control of the proboscis.",
+  "SAD": "Saddle. Connects brain and nerve cord pathways; hearing signals from the antennae land here.",
+  "GNG": "Gnathal ganglion. The fly's brainstem and its largest brain compartment: taste, feeding, and head and mouthpart movement.",
+  "CRN": "Small midline compartment at the back of the brain, above the neck connective, near where hormone-releasing neurons exit.",
+  "CV-anterior": "Cervical connective, brain side. The neck cable carrying every axon between brain and nerve cord.",
+  "CV-posterior": "Cervical connective, nerve cord side. The neck cable as it enters the thorax.",
+  "LegNp(T1)": "Front leg neuropil. Sensors from the front leg and the motor circuits that move it. Also used for grooming and tasting with the feet.",
+  "LegNp(T2)": "Middle leg neuropil. Sensors and motor circuits for the middle pair of legs.",
+  "LegNp(T3)": "Hind leg neuropil. Sensors and motor circuits for the hind pair of legs.",
+  "Ov": "Ovoid. A small paired region in the front thoracic segment on the sensory path from the neck and front legs.",
+  "IntTct": "Intermediate tectulum. A coordination layer in the middle of the thorax that links leg and wing circuits.",
+  "LTct": "Lower tectulum. Leg motor coordination, and the landing zone of the giant fibre escape pathway.",
+  "NTct(UTct-T1)": "Neck tectulum. Controls the muscles that move the head.",
+  "WTct(UTct-T2)": "Wing tectulum. Flight: wing motor neurons and the steering muscles.",
+  "HTct(UTct-T3)": "Haltere tectulum. The halteres are the fly's gyroscopes; their signals arrive here to stabilise flight.",
+  "mVAC(T1)": "Medial ventral association centre, front legs. Where the front legs' position sensors report in.",
+  "mVAC(T2)": "Medial ventral association centre, middle legs. Where the middle legs' position sensors report in.",
+  "mVAC(T3)": "Medial ventral association centre, hind legs. Where the hind legs' position sensors report in.",
+  "ANm": "Abdominal neuromere. Runs the abdomen: gut, reproduction, and in the male the muscles for courtship song and mating.",
+};
+const SUPERCLASS_INFO = {
+  ol_intrinsic: "lives entirely inside the optic lobes", cb_intrinsic: "lives entirely inside the central brain", vnc_intrinsic: "lives entirely inside the nerve cord",
+  visual_projection: "carries vision from the optic lobes into the brain", visual_centrifugal: "feedback from the brain back to the eyes",
+  descending_neuron: "command neuron: brain down to nerve cord", ascending_neuron: "reports from the nerve cord up to the brain",
+  vnc_sensory: "sensory input arriving in the nerve cord", cb_sensory: "sensory input arriving in the brain", ol_sensory: "photoreceptors and other eye input",
+  sensory_ascending: "sensory axon running up to the brain", vnc_motor: "motor neuron driving body muscles", cb_motor: "motor neuron driving head muscles",
+  vnc_efferent: "sends signals out of the nerve cord", cb_efferent: "sends signals out of the brain", cb_endocrine: "hormone-releasing, brain", vnc_endocrine: "hormone-releasing, nerve cord",
+};
+const SUPERCLASS_HUES = { cb_intrinsic: 45, ol_intrinsic: 205, vnc_intrinsic: 8, visual_projection: 225, visual_centrifugal: 250, descending_neuron: 120, ascending_neuron: 165, vnc_sensory: 320, cb_sensory: 340, ol_sensory: 190, sensory_ascending: 300, vnc_motor: 20, cb_motor: 30 };
+
+function hsl(h, s, l) { const c = new THREE.Color(); c.setHSL(((h % 360) + 360) % 360 / 360, s, l); return c; }
+function cssOf(c) { return "#" + c.getHexString(); }
+
+/* Assign each region a colour: family hue, spread by base structure; L/R share a colour. */
+function colourRegions(regions) {
+  const byFam = new Map();
+  regions.forEach(r => {
+    r.base = r.name.replace(/\((L|R)\)$/, "");
+    r.side = /\(L\)$/.test(r.name) ? "L" : /\(R\)$/.test(r.name) ? "R" : "";
+    r.family = FAMILIES.find(f => f.match.test(r.name)) || FAMILIES[6];
+    if (!byFam.has(r.family.key)) byFam.set(r.family.key, new Map());
+    const bases = byFam.get(r.family.key);
+    if (!bases.has(r.base)) bases.set(r.base, []);
+    bases.get(r.base).push(r);
+  });
+  byFam.forEach((bases, key) => {
+    const fam = FAMILIES.find(f => f.key === key);
+    const list = [...bases.keys()];
+    list.forEach((base, i) => {
+      const t = list.length === 1 ? 0.5 : i / (list.length - 1);
+      const h = fam.hue + (t - 0.5) * 34;
+      const l = 0.52 + ((i % 3) - 1) * 0.08;
+      const s = 0.72 - (i % 2) * 0.1;
+      bases.get(base).forEach(r => { r.color = hsl(h, s, l); });
+    });
+  });
+}
+
+/* ---------- decode ---------- */
+function b64ToBytes(s) { const bin = atob(s); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
+function decodeLayer(layer) {
+  const pos16 = new Int16Array(b64ToBytes(layer.pos).buffer);
+  const lab = new Uint16Array(b64ToBytes(layer.lab).buffer);
+  const pos = new Float32Array(pos16.length);
+  for (let i = 0; i < pos16.length; i++) pos[i] = pos16[i] * 0.1;
+  return { pos, lab, n: layer.n };
+}
+
+/* ---------- scene ---------- */
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0A0C11, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 1, 20000);
+
+const roi = decodeLayer(DATA.roi);
+const soma = decodeLayer(DATA.soma);
+colourRegions(DATA.roi.regions);
+const regionById = new Map(DATA.roi.regions.map(r => [r.id, r]));
+
+// centre the cloud on the origin; EM axes: x = left-right, y = dorsal-ventral (y grows ventral), z = anterior→posterior
+const [lo, hi] = DATA.bounds_um;
+const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+function toScene(pos) {
+  const out = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) {
+    out[i]     =  (pos[i]     - centre[0]);
+    out[i + 1] = -(pos[i + 1] - centre[1]);   // flip so dorsal is up
+    out[i + 2] = -(pos[i + 2] - centre[2]);   // flip so anterior faces +z (toward default camera)
+  }
+  return out;
+}
+
+const sprite = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"); const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, "rgba(255,255,255,1)"); grd.addColorStop(0.35, "rgba(255,255,255,0.55)"); grd.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); return t;
+})();
+
+function makeCloud(layer, colourFor, sizeScale) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(toScene(layer.pos), 3));
+  const col = new Float32Array(layer.n * 3);
+  const alpha = new Float32Array(layer.n).fill(1);
+  for (let i = 0; i < layer.n; i++) { const c = colourFor(layer.lab[i]); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.setAttribute("aAlpha", new THREE.BufferAttribute(alpha, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uSize: { value: 1.6 * sizeScale }, uOpacity: { value: 0.55 }, uMap: { value: sprite }, uPx: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute float aAlpha; varying vec3 vC; varying float vA; uniform float uSize; uniform float uPx;
+      void main(){ vC = color; vA = aAlpha; vec4 mv = modelViewMatrix * vec4(position,1.0);
+        gl_PointSize = uSize * uPx * 260.0 / -mv.z; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `
+      varying vec3 vC; varying float vA; uniform float uOpacity; uniform sampler2D uMap;
+      void main(){ float a = texture2D(uMap, gl_PointCoord).a; if (vA < 0.01) discard; gl_FragColor = vec4(vC, a * uOpacity * vA); }`,
+    vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; return pts;
+}
+
+const roiCloud = makeCloud(roi, id => regionById.get(id).color, 1.0);
+const somaCloud = makeCloud(soma, i => hsl(SUPERCLASS_HUES[DATA.soma.classes[i]] ?? 0, 0.55, 0.62), 0.55);
+somaCloud.visible = false;
+scene.add(roiCloud, somaCloud);
+
+/* ---------- region visibility ---------- */
+const regionOn = new Map(DATA.roi.regions.map(r => [r.id, true]));
+let isolated = null;
+function applyAlpha() {
+  const a = roiCloud.geometry.attributes.aAlpha.array;
+  for (let i = 0; i < roi.n; i++) {
+    const id = roi.lab[i];
+    a[i] = !regionOn.get(id) ? 0 : (isolated === null ? 1 : (isolated === id || regionById.get(id).base === regionById.get(isolated).base ? 1 : 0.06));
+  }
+  roiCloud.geometry.attributes.aAlpha.needsUpdate = true;
+}
+
+/* ---------- legend ---------- */
+const legend = document.getElementById("legend");
+const fmtVol = v => v >= 1e6 ? (v / 1e6).toFixed(2) + "M µm³" : v >= 1000 ? Math.round(v / 1000) + "k µm³" : v + " µm³";
+function buildLegend() {
+  FAMILIES.forEach(fam => {
+    const members = DATA.roi.regions.filter(r => r.family === fam);
+    if (!members.length) return;
+    // group bilateral pairs into one row
+    const rows = new Map();
+    members.forEach(r => { if (!rows.has(r.base)) rows.set(r.base, []); rows.get(r.base).push(r); });
+    const g = document.createElement("div"); g.className = "group";
+    const head = document.createElement("label"); head.className = "group-head";
+    head.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${cssOf(hsl(fam.hue, 0.7, 0.55))}"></span><span class="name">${fam.name}</span><span class="n">${rows.size}</span>`;
+    const gcb = head.querySelector("input");
+    gcb.addEventListener("change", () => { members.forEach(r => regionOn.set(r.id, gcb.checked)); g.querySelectorAll(".region input").forEach(i => { i.checked = gcb.checked; i.closest(".region").classList.toggle("off", !gcb.checked); }); applyAlpha(); updateReadout(); });
+    g.appendChild(head);
+    const gd = document.createElement("div"); gd.className = "group-desc"; gd.textContent = fam.desc; g.appendChild(gd);
+    rows.forEach((pair, base) => {
+      const row = document.createElement("label"); row.className = "region";
+      const vol = pair.reduce((s, r) => s + r.volume_um3, 0);
+      const sides = pair.map(r => r.side).filter(Boolean).sort().join("");
+      row.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${cssOf(pair[0].color)};color:${cssOf(pair[0].color)}"></span><span class="name">${base}${sides ? ` <span style="color:var(--muted)">${sides}</span>` : ""}</span><span class="vol">${fmtVol(vol)}</span>`;
+      const cb = row.querySelector("input");
+      cb.addEventListener("change", () => { pair.forEach(r => regionOn.set(r.id, cb.checked)); row.classList.toggle("off", !cb.checked); gcb.checked = members.some(r => regionOn.get(r.id)); applyAlpha(); updateReadout(); });
+      row.addEventListener("mouseenter", () => { isolated = pair[0].id; applyAlpha(); showRegion(pair); });
+      row.addEventListener("mouseleave", () => { isolated = null; applyAlpha(); updateReadout(); info.hidden = true; document.getElementById("soma-key").hidden = !somaCloud.visible; });
+      g.appendChild(row);
+    });
+    legend.appendChild(g);
+  });
+}
+const readout = document.getElementById("readout");
+const info = document.getElementById("info");
+function showRegion(pair) {
+  const vol = pair.reduce((s, r) => s + r.volume_um3, 0);
+  const pts = pair.reduce((s, r) => s + r.points, 0);
+  const r0 = pair[0];
+  readout.innerHTML = `<b>${pair.map(r => r.name).join(" · ")}</b> · ${fmtVol(vol)}`;
+  document.getElementById("info-name").textContent = r0.base;
+  document.getElementById("info-fam").textContent = r0.family.name + (pair.length > 1 ? " · left and right" : "");
+  document.getElementById("info-desc").textContent = REGION_INFO[r0.base] || "";
+  document.getElementById("info-meta").textContent = `volume ${fmtVol(vol)} · ${pts.toLocaleString()} sample points · centre x ${r0.centroid[0]} y ${r0.centroid[1]} z ${r0.centroid[2]} µm`;
+  info.style.setProperty("--info-color", cssOf(r0.color));
+  info.hidden = false; document.getElementById("soma-key").hidden = true;
+}
+function updateReadout() {
+  const on = DATA.roi.regions.filter(r => regionOn.get(r.id));
+  readout.innerHTML = `<b>${on.length}</b> of ${DATA.roi.regions.length} neuropils shown`;
+}
+document.getElementById("all-on").addEventListener("click", () => { DATA.roi.regions.forEach(r => regionOn.set(r.id, true)); legend.querySelectorAll("input").forEach(i => i.checked = true); legend.querySelectorAll(".region").forEach(r => r.classList.remove("off")); applyAlpha(); updateReadout(); });
+document.getElementById("all-off").addEventListener("click", () => { DATA.roi.regions.forEach(r => regionOn.set(r.id, false)); legend.querySelectorAll("input").forEach(i => i.checked = false); legend.querySelectorAll(".region").forEach(r => r.classList.add("off")); applyAlpha(); updateReadout(); });
+
+/* ---------- controls ---------- */
+const state = { theta: 0.7, phi: 0.45, dist: 1400, target: new THREE.Vector3(0, 0, 0), spin: true };
+const extent = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+state.dist = extent * 1.3;
+const VIEWS = { anterior: [0, 0.10], dorsal: [0, Math.PI / 2 - 0.02], lateral: [Math.PI / 2, 0.05], iso: [0.7, 0.45] };
+let animTarget = null;
+function setView(name) {
+  const [th, ph] = VIEWS[name]; animTarget = { theta: th, phi: ph, t0: performance.now() };
+  document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === name)));
+}
+document.getElementById("views").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.view); });
+
+let drag = null;
+canvas.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey || e.button === 2 }; canvas.setPointerCapture(e.pointerId); animTarget = null; });
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.pan) { const right = new THREE.Vector3(), up = new THREE.Vector3(); camera.matrix.extractBasis(right, up, new THREE.Vector3()); const k = state.dist * 0.0012; state.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k); }
+  else { state.theta -= dx * 0.006; state.phi = Math.max(-1.5, Math.min(1.5, state.phi + dy * 0.006)); }
+});
+canvas.addEventListener("pointerup", () => drag = null);
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+canvas.addEventListener("wheel", e => { e.preventDefault(); state.dist = Math.max(extent * 0.15, Math.min(extent * 5, state.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
+let pinch = null;
+canvas.addEventListener("touchstart", e => { if (e.touches.length === 2) pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }, { passive: true });
+canvas.addEventListener("touchmove", e => { if (e.touches.length === 2 && pinch) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); state.dist = Math.max(extent * 0.15, Math.min(extent * 5, state.dist * pinch / d)); pinch = d; } }, { passive: true });
+
+document.getElementById("psize").addEventListener("input", e => { roiCloud.material.uniforms.uSize.value = +e.target.value; somaCloud.material.uniforms.uSize.value = +e.target.value * 0.55; });
+document.getElementById("glow").addEventListener("input", e => { roiCloud.material.uniforms.uOpacity.value = +e.target.value; somaCloud.material.uniforms.uOpacity.value = Math.min(1, +e.target.value * 1.4); });
+document.getElementById("layer-roi").addEventListener("change", e => roiCloud.visible = e.target.checked);
+document.getElementById("layer-soma").addEventListener("change", e => { somaCloud.visible = e.target.checked; document.getElementById("soma-key").hidden = !e.target.checked; });
+(function buildSomaKey() {
+  const rows = document.getElementById("soma-rows");
+  const order = Object.entries(DATA.soma.class_counts).sort((a, b) => b[1] - a[1]).filter(([c, n]) => n >= 50);
+  rows.innerHTML = order.map(([c, n]) => `<span class="sw" style="background:${cssOf(hsl(SUPERCLASS_HUES[c] ?? 0, 0.55, 0.62))}"></span><span>${c.replace(/_/g, " ")}<span style="color:var(--muted)"> · ${SUPERCLASS_INFO[c] || ""}</span></span><span class="n">${n.toLocaleString()}</span>`).join("");
+})();
+(function wireAbout() {
+  const btn = document.getElementById("about-btn"), panel = document.getElementById("about");
+  const set = open => { panel.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
+  btn.addEventListener("click", () => set(panel.hidden));
+  document.getElementById("about-close").addEventListener("click", () => set(false));
+  document.getElementById("about-fams").innerHTML = FAMILIES.map(f => `<div class="fam"><span class="sw" style="background:${cssOf(hsl(f.hue, 0.7, 0.55))}"></span><span><b>${f.name}.</b> <span class="d">${f.desc}</span></span></div>`).join("");
+  // open the explainer on first load so the page explains itself; remember dismissal per viewer
+  let seen = false; try { seen = localStorage.getItem("mcns-about-seen") === "1"; } catch (e) {}
+  if (!seen && window.innerWidth > 900) set(true);
+  document.getElementById("about-close").addEventListener("click", () => { try { localStorage.setItem("mcns-about-seen", "1"); } catch (e) {} });
+})();
+const spinBox = document.getElementById("spin");
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { spinBox.checked = false; }
+spinBox.addEventListener("change", e => state.spin = e.target.checked);
+state.spin = spinBox.checked;
+
+function resize() { const w = canvas.clientWidth, h = canvas.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); layoutPanels(); }
+function layoutPanels() { const bar = document.querySelector(".controls").offsetHeight + 32; const brand = document.querySelector(".brand"); const top = brand.offsetTop + brand.offsetHeight + 14; document.querySelector(".legend").style.bottom = bar + "px"; document.querySelector(".legend").style.top = top + "px"; ["#about", "#info", "#soma-key"].forEach(s => { document.querySelector(s).style.bottom = bar + "px"; }); }
+if (window.ResizeObserver) new ResizeObserver(layoutPanels).observe(document.querySelector(".controls"));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutPanels);
+window.addEventListener("resize", resize); resize();
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (animTarget) { const k = 1 - Math.exp(-dt * 6); state.theta += (animTarget.theta - state.theta) * k; state.phi += (animTarget.phi - state.phi) * k; if (Math.abs(animTarget.theta - state.theta) < 0.002 && Math.abs(animTarget.phi - state.phi) < 0.002) animTarget = null; }
+  else if (state.spin && !drag) state.theta += dt * 0.12;
+  const cp = Math.cos(state.phi);
+  camera.position.set(state.target.x + state.dist * cp * Math.sin(state.theta), state.target.y + state.dist * Math.sin(state.phi), state.target.z + state.dist * cp * Math.cos(state.theta));
+  camera.lookAt(state.target);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- brain activity playback (Phase 1 biology checks) ---------- */
+const act = { key: "off", tick: 0, playing: true, cache: new Map(), base: null, last: 0 };
+const ACT_POS = [0.96, 0.72, 0.28], ACT_NEG = [0.45, 0.72, 0.92], ACT_DIM = [0.16, 0.17, 0.21], ACT_STIM = [0.56, 0.83, 0.91];
+function actFrame(exp, t) {
+  const k = exp.key + ":" + t; if (act.cache.has(k)) return act.cache.get(k);
+  const f = exp.frames[t];
+  const fr = { idx: new Uint32Array(b64ToBytes(f.idx).buffer), val: new Int8Array(b64ToBytes(f.val).buffer) };
+  act.cache.set(k, fr); return fr;
+}
+function paintActivity() {
+  const exp = ACT.experiments.find(e => e.key === act.key); if (!exp) return;
+  const col = somaCloud.geometry.attributes.color.array;
+  for (let i = 0; i < col.length; i += 3) { col[i] = ACT_DIM[0]; col[i + 1] = ACT_DIM[1]; col[i + 2] = ACT_DIM[2]; }
+  const fr = actFrame(exp, act.tick);
+  for (let j = 0; j < fr.idx.length; j++) {
+    const a = Math.min(1, Math.abs(fr.val[j]) / 90), c = fr.val[j] > 0 ? ACT_POS : ACT_NEG, o = fr.idx[j] * 3;
+    col[o] = ACT_DIM[0] + (c[0] - ACT_DIM[0]) * a; col[o + 1] = ACT_DIM[1] + (c[1] - ACT_DIM[1]) * a; col[o + 2] = ACT_DIM[2] + (c[2] - ACT_DIM[2]) * a;
+  }
+  if (!exp._stim) exp._stim = new Uint32Array(b64ToBytes(exp.stim_idx).buffer);
+  for (let j = 0; j < exp._stim.length; j++) { const o = exp._stim[j] * 3; col[o] = ACT_STIM[0]; col[o + 1] = ACT_STIM[1]; col[o + 2] = ACT_STIM[2]; }
+  somaCloud.geometry.attributes.color.needsUpdate = true;
+  document.getElementById("act-tick").value = act.tick;
+  readout.innerHTML = `<b>${exp.title}</b> · tick ${act.tick + 1}/${ACT.ticks} · ${(act.tick + 1) * ACT.dt_ms} ms · ${fr.idx.length.toLocaleString()} neurons responding`;
+}
+function setActivity(key) {
+  act.key = key; act.tick = 0;
+  document.querySelectorAll("#act button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.act === key)));
+  const on = key !== "off";
+  document.getElementById("act-play").hidden = !on; document.getElementById("act-tick").hidden = !on;
+  if (!act.base) act.base = somaCloud.geometry.attributes.color.array.slice();
+  if (on) {
+    somaCloud.visible = true; roiCloud.material.uniforms.uOpacity.value = 0.10; somaCloud.material.uniforms.uSize.value = +document.getElementById("psize").value * 0.9;
+    const exp = ACT.experiments.find(e => e.key === key);
+    document.getElementById("info-name").textContent = exp.title;
+    document.getElementById("info-fam").textContent = `${exp.stimulated.toLocaleString()} neurons driven`;
+    document.getElementById("info-desc").textContent = exp.blurb;
+    document.getElementById("info-meta").textContent = `untrained digital fly · ${DATA.soma.n.toLocaleString()} cell bodies · amber = above rest, blue = below rest, cyan = stimulated · brightness relative to the peak response`;
+    info.style.setProperty("--info-color", "#F2B841"); info.hidden = false; document.getElementById("soma-key").hidden = true;
+    paintActivity();
+  } else {
+    somaCloud.geometry.attributes.color.array.set(act.base); somaCloud.geometry.attributes.color.needsUpdate = true;
+    somaCloud.visible = document.getElementById("layer-soma").checked; roiCloud.material.uniforms.uOpacity.value = +document.getElementById("glow").value;
+    somaCloud.material.uniforms.uSize.value = +document.getElementById("psize").value * 0.55;
+    info.hidden = true; document.getElementById("soma-key").hidden = !somaCloud.visible; updateReadout();
+  }
+}
+if (ACT) {
+  document.getElementById("act").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setActivity(b.dataset.act); });
+  document.getElementById("act-tick").max = ACT.ticks - 1;
+  document.getElementById("act-tick").addEventListener("input", e => { act.tick = +e.target.value; act.playing = false; document.getElementById("act-play").textContent = "Play"; paintActivity(); });
+  document.getElementById("act-play").addEventListener("click", e => { act.playing = !act.playing; e.target.textContent = act.playing ? "Pause" : "Play"; });
+  setInterval(() => { if (act.key !== "off" && act.playing) { act.tick = (act.tick + 1) % ACT.ticks; paintActivity(); } }, 110);
+} else { document.getElementById("act").closest(".ctl").hidden = true; }
+
+buildLegend(); applyAlpha(); updateReadout();
+document.getElementById("st-regions").textContent = DATA.roi.regions.length;
+document.getElementById("st-points").textContent = (roi.n / 1000).toFixed(0) + "k";
+document.getElementById("st-somas").textContent = soma.n.toLocaleString();
+document.getElementById("loading").classList.add("done");
+requestAnimationFrame(frame);
+</script>
