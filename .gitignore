@@ -6,3 +6,6 @@ __pycache__/
 # raw tables downloaded from gs://flyem-male-cns (see MALECNS_NOTES.md) and derived binaries
 data/*.feather
 data/graph_brain.npz
+
+# run logs
+data/*.log
