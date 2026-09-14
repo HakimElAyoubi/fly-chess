@@ -15,7 +15,7 @@ The full plan is in [PLAN.md](PLAN.md) (six phases). Status:
 |---|---|---|
 | 0 | Know the data | done |
 | 1 | Build the digital fly | done |
-| 2 | Show it the board | next |
+| 2 | Show it the board | built; medulla reads 91.6% of squares, target 99.5% |
 | 3 | Teach it the rules | |
 | 4 | Make it play | |
 | 5 | Look inside | |

@@ -63,12 +63,21 @@ gains (Phase 3) are the fix. CPU only: 0.7 s per tick at batch 128; MPS has no s
 Done when: 130k-neuron forward pass at batch 128 well under 1 s on GPU; both checks pass;
 activity renders.
 
-### 2 — Show it the board (week 3)
-1. Eye map from annotation columns assignedOlHex1/assignedOlHex2 (~750 columns/eye). Map the
-   board to a 24×24 patch of the right eye: 3×3 facets per square.
-2. Piece kind = brightness glyph in the patch; piece colour on R7/R8 colour channels; side to
-   move = global brightness bias.
-3. Inject as photoreceptor currents (~6,100 ol_sensory axons). Fallback: lamina L1/L2.
+### 2 — Show it the board (week 3) — BUILT 2026-09-14, target not met yet (see flybrain/README.md)
+Result: the untrained optic lobe carries the board at 91.6% of squares on random placements
+(95.5% on realistic positions), against a target of > 99.5%; the stimulus itself decodes at
+98.8%; descending neurons 47.4% / 61.2% before any training.
+Target not met yet: next levers are a lower input range (receptor rates capped at 0.5) and a larger
+probe training set. Details and table in flybrain/README.md.
+1. Eye map from annotation columns assignedOlHex1/assignedOlHex2: 892 columns in the right eye.
+   Photoreceptors placed by their strongest one-per-column partner. The board is a retinotopic
+   quantile grid (8 rank bands × 8 files of equal column count) over the 645 columns that have
+   both colour receptors traced: 10 columns per square. (The 3×3-facet patch of the original
+   plan was not possible: only 380 columns have traced R1–R6 cells.)
+2. Square state on the R7/R8 colour channels as a point on a 4×4 grid of levels (empty (0,0),
+   white pieces along the R7 edge, black along the R8 edge); side to move = global brightness
+   bias on R1–R6. Pieces are told apart by colour, not shape: the eye cannot resolve glyphs.
+3. Injected as photoreceptor currents into 2,239 right-eye photoreceptor axons (current 2.0 × level).
 4. Linear probe from medulla+lobula at the last tick must recover the board > 99.5% per square
    with untrained gains. Probe DNs too (baseline).
 Done when: the optic lobe provably carries the whole board.
