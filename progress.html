@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fly Chess · progress</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+  :root { --ground:#0A0C11; --panel:#141821; --line:rgba(233,230,221,.12); --text:#E9E6DD; --muted:#8B909D; --accent:#8FD3E8; --amber:#F2B841; --green:#7BD389; }
+  body { margin:0; background:var(--ground); color:var(--text); font-family:"IBM Plex Sans",system-ui,sans-serif; display:grid; place-items:center; min-height:100vh; }
+  main { width:min(720px, 92vw); }
+  h1 { font-family:"Fraunces",Georgia,serif; font-weight:300; font-size:30px; margin:0 0 4px; }
+  h1 em { font-style:italic; color:var(--accent); }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 22px; }
+  .job { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:12px; }
+  .job .name { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .job .name b { font-weight:600; }
+  .job .name span { font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); }
+  .track { height:14px; border-radius:7px; background:rgba(255,255,255,.07); overflow:hidden; }
+  .fill { height:100%; width:0; background:linear-gradient(90deg, var(--accent), #5FB8D6); transition:width .6s ease; }
+  .job.done .fill { background:var(--green); }
+  .meta { display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); }
+  .meta b { color:var(--text); font-weight:500; }
+  .pct { font-family:"Fraunces",Georgia,serif; font-size:34px; font-weight:300; color:var(--text); line-height:1; }
+  .job.done .pct { color:var(--green); }
+  .foot { color:var(--muted); font-size:12px; margin-top:16px; font-family:"IBM Plex Mono",monospace; }
+  .stale { color:var(--amber); }
+</style>
+<main>
+  <h1>Fly Chess <em>progress</em></h1>
+  <p class="sub">Updates every 2 seconds from <code>data/progress.txt</code>. Keep this tab open.</p>
+  <div id="jobs"></div>
+  <p class="foot" id="foot">connecting…</p>
+</main>
+<script>
+const jobs = document.getElementById("jobs"), foot = document.getElementById("foot");
+let lastChange = Date.now(), lastText = "";
+async function tick() {
+  try {
+    const r = await fetch("data/progress.txt?ts=" + Date.now(), { cache: "no-store" });
+    const text = await r.text();
+    if (text !== lastText) { lastChange = Date.now(); lastText = text; }
+    const lines = text.split("\n").filter(l => l.trim());
+    const done = lines.some(l => /^done$|: done$/.test(l.trim()));
+    const bars = lines.filter(l => l.includes("["));
+    jobs.innerHTML = bars.map(l => {
+      const m = l.match(/^(.*?)\s*\[([█░]*)\]\s*([\d.]+)%\s*·\s*(\d+)\/(\d+)\s*·\s*([\d.]+) min elapsed\s*·\s*([\d.nan]+) min left/);
+      if (!m) return `<div class="job"><div class="name"><b>${l}</b></div></div>`;
+      const [, label, , pct, d, t, el, eta] = m;
+      const fin = done || +pct >= 100;
+      return `<div class="job ${fin ? "done" : ""}"><div class="name"><b>${label.trim()}</b><span>${fin ? "finished" : "running"}</span></div>
+        <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="meta"><span class="pct">${fin ? "100" : pct}%</span><span><b>${d}</b> of ${t}</span><span><b>${el}</b> min elapsed</span><span>${fin ? "" : `<b>${eta === "nan" ? "…" : eta}</b> min left`}</span></div></div>`;
+    }).join("") || `<div class="job"><div class="name"><b>no job running</b></div></div>`;
+    const age = Math.round((Date.now() - lastChange) / 1000);
+    foot.innerHTML = `last change ${age}s ago · ${new Date().toLocaleTimeString()}` + (age > 90 && !done ? ` · <span class="stale">no update for ${Math.round(age / 60)} min, the job may have stalled</span>` : "");
+  } catch (e) { foot.innerHTML = `<span class="stale">cannot read data/progress.txt: is the local server running? (python3 -m http.server 8931)</span>`; }
+}
+tick(); setInterval(tick, 2000);
+</script>

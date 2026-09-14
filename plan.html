@@ -130,7 +130,7 @@
     <ol>
       <li><a href="#p0"><span class="n">0</span><span>Know the data<span class="w">done</span></span></a></li>
       <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
-      <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">week 3</span></span></a></li>
+      <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">91.6% of 99.5%</span></span></a></li>
       <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">weeks 4–6</span></span></a></li>
       <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
       <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
@@ -304,12 +304,23 @@
     </section>
 
     <section class="phase" id="p2">
-      <div class="ph"><span class="num">2</span><h2>Show it the board</h2><span class="when">week 3</span></div>
+      <div class="ph"><span class="num">2</span><h2>Show it the board</h2><span class="when">built · target not met yet</span></div>
       <p class="goal">The board reaches the visual system through the fly's own eye, and the visual system provably represents all of it.</p>
+      <div class="callout">
+        <p><b>Result, 14 Sep 2026: target not met yet.</b> The eye map, the colour encoding of the board, and the probe are built, and the stimulus itself is fully decodable (98.8% of squares from the photoreceptor currents, 100% per square). The untrained medulla and lobula carry the board at <b>91.6%</b> of squares on random placements and 95.5% on realistic positions, against the 99.5% target; the loss is inside the network, where saturating units compress the level code and lateral connections mix neighbouring squares. Fixing the stimulus once already lifted the medulla from 74.6% to 91.6%. Two levers remain before touching the wiring: cap the receptor rates at 0.5 so the medulla stays in its linear range, and double the probe's training set. The descending neurons already read the board at 47.4% before any training, the baseline for Phase 3.</p>
+<div class="tablewrap"><table><tr><th>Stage</th><th>Neurons</th><th>Responding</th><th>Squares right, random placements</th><th>Squares right, random play</th><th>Side to move</th></tr>
+<tr><td>Photoreceptor input (the stimulus itself)</td><td class="m">2,239</td><td class="m">97.5%</td><td class="m"><b>98.8%</b></td><td class="m">99.7%</td><td class="m">100.0%</td></tr>
+<tr><td>Lamina L1–L5, right</td><td class="m">4,466</td><td class="m">88.9%</td><td class="m"><b>90.0%</b></td><td class="m">94.0%</td><td class="m">100.0%</td></tr>
+<tr><td>Medulla + lobula, right (all optic-lobe intrinsic)</td><td class="m">44,789</td><td class="m">75.5%</td><td class="m"><b>91.6%</b></td><td class="m">95.5%</td><td class="m">100.0%</td></tr>
+<tr><td>Visual projection neurons, right</td><td class="m">4,612</td><td class="m">41.7%</td><td class="m"><b>87.3%</b></td><td class="m">92.8%</td><td class="m">100.0%</td></tr>
+<tr><td>Central brain intrinsic</td><td class="m">32,160</td><td class="m">0.9%</td><td class="m"><b>55.8%</b></td><td class="m">67.4%</td><td class="m">100.0%</td></tr>
+<tr><td>Descending neurons</td><td class="m">1,314</td><td class="m">0.5%</td><td class="m"><b>47.4%</b></td><td class="m">61.2%</td><td class="m">100.0%</td></tr>
+</table></div>
+      </div>
       <ol class="steps">
-        <li><span><b>Use the real eye map.</b> The annotation table's <code>assignedOlHex1</code> and <code>assignedOlHex2</code> columns give every optic-lobe column its hexagonal position on the eye, about 750 columns per eye. Map the 8×8 board onto a 24×24 patch of the right eye so each square covers 3×3 facets.</span></li>
-        <li><span><b>Encode the pieces as light.</b> Piece kind as a small brightness glyph inside its 3×3 patch; colour of the piece on the eye's colour channels (the R7 and R8 receptors see ultraviolet and blue versus green); side to move as a global brightness bias.</span></li>
-        <li><span><b>Inject as photoreceptor currents</b> into the roughly 6,100 photoreceptor axons in the dataset. If photoreceptor coverage of the chosen eye turns out incomplete, inject one layer in, at the lamina L1 and L2 cells, and say so.</span></li>
+        <li><span><b>Use the real eye map.</b> The annotation table's <code>assignedOlHex1</code> and <code>assignedOlHex2</code> columns give every optic-lobe column its hexagonal position on the eye: 892 columns in the right eye. Photoreceptors carry no coordinates, so each is placed by its strongest strictly one-per-column partner. The board is a retinotopic grid, 8 rank bands by 8 files of equal column count, over the 645 columns that have both colour receptors traced: 10 columns per square. The original 3×3-facet patch was not possible, because only 380 columns have traced R1–R6 cells.</span></li>
+        <li><span><b>Encode the pieces as light.</b> The eye cannot resolve glyph shapes at ten columns per square, so pieces are told apart by colour: each square's 13-way state is a point on a 4×4 grid of levels on the R7 and R8 colour channels (empty at the origin, white pieces along the R7 edge, black along the R8 edge). Side to move is a global brightness bias on R1–R6.</span></li>
+        <li><span><b>Inject as photoreceptor currents</b> into the 2,239 right-eye photoreceptor axons, 2.0 × level. A per-square classifier on a square's own photoreceptors recovers the state at 100%, so the encoding has no ceiling below the target.</span></li>
         <li><span><b>Probe it.</b> Train a linear readout from medulla and lobula activity at the final tick to reconstruct all 64 squares. With untrained gains it must recover the board at better than 99.5% square accuracy. Then probe the descending neurons the same way to record how much of the board reaches them before any training.</span></li>
       </ol>
       <div class="done"><b>Done when</b><span>The optic lobe provably carries the whole board. Nothing after this phase is worth running until it does.</span></div>
