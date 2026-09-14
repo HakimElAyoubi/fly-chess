@@ -9,3 +9,7 @@ data/graph_brain.npz
 
 # run logs
 data/*.log
+data/probe_features.npz
+data/progress.txt
+data/.launch_ok
+data/.ab_*
