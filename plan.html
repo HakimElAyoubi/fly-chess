@@ -131,7 +131,7 @@
       <li><a href="#p0"><span class="n">0</span><span>Know the data<span class="w">done</span></span></a></li>
       <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
       <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">done</span></span></a></li>
-      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">in progress</span></span></a></li>
+      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">20.3% top-1</span></span></a></li>
       <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
       <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
       <li><a href="#p6"><span class="n">6</span><span>Ship the demo<span class="w">weeks 13–14</span></span></a></li>
@@ -329,11 +329,42 @@
     </section>
 
     <section class="phase" id="p3">
-      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">in progress · pipeline built 15 Sep 2026</span></div>
+      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">in progress · first GPU run 15 Sep 2026</span></div>
       <p class="goal">Given a board, the descending neurons produce a legal and plausible move.</p>
       <div class="callout">
-        <!-- PHASE3_RESULTS -->
-        <p><b>Status.</b> The full training pipeline exists and runs end to end on the Mac: a Lichess data feed, the differentiable fly with learned gains and biases, the descending-neuron move and value heads, legality and imitation metrics, checkpoints and a progress bar. A pilot with per-neuron gains is training on 9,600 positions; the per-edge variant is one flag away and waits for a rented GPU.</p>
+        <!-- PHASE3_RESULTS:begin -->
+<p><b>Result so far, 15 Sep 2026.</b> One rented RTX 4090 trained the per-edge variant (27.1 million parameters, every synapse free to change its strength) on 768,000 Lichess positions in 125 minutes for about a dollar. On held-out positions the fly's moves are legal 68.0% of the time (best 72.1%), match the human move 20.3% of the time (best 22.5%) and land in the top three 39.5% (best 42.2%); chance is 0.7%, 3% and 9%. The Mac control that may only rescale neurons, not synapses, reaches 17% legal and 6% top-1: the freedom at the synapse is what learns. The targets of 99% legal and 35% top-1 are not reached; the loss was still falling when the run ended, so more training is the first lever.</p>
+<div class="tablewrap"><table><tr><th>Step</th><th>Positions</th><th>Eval loss</th><th>Legal</th><th>Top-1</th><th>Top-3</th><th>Value</th></tr><tr><td class="m">200</td><td class="m">25,600</td><td class="m">5.88</td><td class="m">41.0%</td><td class="m">12.9%</td><td class="m">27.9%</td><td class="m">50.6%</td></tr><tr><td class="m">1,000</td><td class="m">128,000</td><td class="m">5.04</td><td class="m">61.3%</td><td class="m">15.0%</td><td class="m">34.6%</td><td class="m">56.1%</td></tr><tr><td class="m">2,000</td><td class="m">256,000</td><td class="m">4.79</td><td class="m">68.0%</td><td class="m">19.5%</td><td class="m">37.1%</td><td class="m">52.5%</td></tr><tr><td class="m">3,000</td><td class="m">384,000</td><td class="m">4.60</td><td class="m">64.1%</td><td class="m">19.3%</td><td class="m">38.5%</td><td class="m">53.5%</td></tr><tr><td class="m">4,000</td><td class="m">512,000</td><td class="m">4.68</td><td class="m">67.6%</td><td class="m">19.3%</td><td class="m">38.3%</td><td class="m">56.2%</td></tr><tr><td class="m">5,000</td><td class="m">640,000</td><td class="m">4.47</td><td class="m">67.4%</td><td class="m">22.1%</td><td class="m">42.2%</td><td class="m">55.7%</td></tr><tr><td class="m">6,000</td><td class="m">768,000</td><td class="m">4.60</td><td class="m">68.0%</td><td class="m">20.3%</td><td class="m">39.5%</td><td class="m">54.5%</td></tr></table></div>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-label="Learning curves of the digital fly: legal-move rate, top-1 and top-3 agreement with human moves, and value accuracy against training steps">
+<rect width="100%" height="100%" fill="none"/>
+<line x1="56" y1="200.0" x2="704" y2="200.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="204.0" font-size="11" text-anchor="end" fill="currentColor">25%</text>
+<line x1="56" y1="140.0" x2="704" y2="140.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="144.0" font-size="11" text-anchor="end" fill="currentColor">50%</text>
+<line x1="56" y1="80.0" x2="704" y2="80.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="84.0" font-size="11" text-anchor="end" fill="currentColor">75%</text>
+<line x1="56" y1="20.0" x2="704" y2="20.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="24.0" font-size="11" text-anchor="end" fill="currentColor">100%</text>
+<line x1="56" y1="260.0" x2="704" y2="260.0" stroke="currentColor" stroke-opacity="0.4"/>
+<text x="56.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">0</text>
+<text x="164.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">1,000</text>
+<text x="272.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">2,000</text>
+<text x="380.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">3,000</text>
+<text x="488.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">4,000</text>
+<text x="596.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">5,000</text>
+<text x="704.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">6,000</text>
+<text x="380" y="296" font-size="11" text-anchor="middle" fill="currentColor" opacity="0.7">training steps (×128 positions)</text>
+<polyline points="77.6,161.6 99.2,135.2 120.8,123.2 142.4,116.0 164.0,112.9 185.6,116.5 207.2,116.5 228.8,110.5 250.4,111.4 272.0,96.8 293.6,111.4 315.2,112.4 336.8,109.0 358.4,110.0 380.0,106.2 401.6,99.2 423.2,106.6 444.8,107.1 466.4,98.2 488.0,97.8 509.6,94.9 531.2,92.2 552.8,97.3 574.4,101.6 596.0,98.2 617.6,92.2 639.2,87.0 660.8,99.2 682.4,99.2 704.0,96.8" fill="none" stroke="#1A7F9C" stroke-width="2"/>
+<text x="708.0" y="100.8" font-size="11" fill="#1A7F9C">legal rate 68%</text>
+<polyline points="77.6,229.0 99.2,233.4 120.8,223.0 142.4,225.2 164.0,224.0 185.6,219.2 207.2,221.6 228.8,215.4 250.4,211.8 272.0,213.2 293.6,213.7 315.2,213.7 336.8,216.8 358.4,214.6 380.0,213.7 401.6,217.3 423.2,215.8 444.8,215.8 466.4,206.0 488.0,213.7 509.6,216.3 531.2,214.2 552.8,213.7 574.4,216.3 596.0,207.0 617.6,206.5 639.2,215.8 660.8,219.7 682.4,210.3 704.0,211.3" fill="none" stroke="#B4562E" stroke-width="2"/>
+<text x="708.0" y="215.3" font-size="11" fill="#B4562E">top-1 20%</text>
+<polyline points="77.6,193.0 99.2,195.0 120.8,182.7 142.4,182.7 164.0,177.0 185.6,182.2 207.2,180.3 228.8,171.0 250.4,169.5 272.0,171.0 293.6,169.0 315.2,162.6 336.8,170.5 358.4,171.9 380.0,167.6 401.6,167.1 423.2,165.7 444.8,166.2 466.4,162.1 488.0,168.1 509.6,162.6 531.2,171.9 552.8,169.0 574.4,171.9 596.0,158.7 617.6,161.6 639.2,168.6 660.8,168.1 682.4,163.5 704.0,165.2" fill="none" stroke="#7BA05B" stroke-width="2"/>
+<text x="708.0" y="169.2" font-size="11" fill="#7BA05B">top-3 40%</text>
+<polyline points="77.6,138.6 99.2,127.8 120.8,130.6 142.4,134.0 164.0,125.4 185.6,138.6 207.2,138.6 228.8,134.5 250.4,141.9 272.0,134.0 293.6,129.7 315.2,123.2 336.8,141.4 358.4,137.6 380.0,131.6 401.6,127.3 423.2,132.1 444.8,125.1 466.4,125.1 488.0,125.1 509.6,124.2 531.2,123.7 552.8,138.1 574.4,125.4 596.0,126.3 617.6,135.7 639.2,125.4 660.8,132.1 682.4,127.8 704.0,129.2" fill="none" stroke="#8B909D" stroke-width="2"/>
+<text x="708.0" y="133.2" font-size="11" fill="#8B909D">value acc 55%</text>
+<text x="56" y="14" font-size="12" fill="currentColor" font-weight="600">GPU run, per-edge gains (RTX 4090)</text></svg><figcaption>Learning curves of the GPU run on 512 held-out positions: legal-move rate, top-1 and top-3 agreement with the human move among legal moves, and value accuracy, over 6,000 training steps.</figcaption></figure>
+<!-- PHASE3_RESULTS:end -->
+        
       </div>
       <ol class="steps">
         <li><span><b>Data.</b> The Lichess open database: at least 10 million positions from games rated 1600 to 2200, plus Stockfish best moves at depth 10 for a 1-million-position subset. Parse and check legality with python-chess.</span></li>

@@ -179,4 +179,44 @@ python -m flybrain.train --device cuda --edge-gains --positions data/positions_f
        --steps 200000 --batch 128 --ticks 24 --eval-every 1000 --tag edge
 ```
 
-<!-- PHASE3_RESULTS -->
+<!-- PHASE3_RESULTS:begin -->
+## Phase 3 results so far (15 Sep 2026)
+
+**GPU run.** One RTX 4090 rented on Vast.ai (instance set up by `remote/run_gpu.sh`): the biology
+checks reproduced exactly on CUDA (gain 1.5), 958,272 positions were streamed from 120,000
+Lichess games, and the per-edge variant (27.1 M parameters: 21.27 M edge gains, 3 × 144,209
+neuron gains and biases, the two heads) trained for 6,000 steps of 128 positions, 768,000
+positions in 125 minutes (1.23 s per step), for about one dollar. Evaluation on 512 held-out
+positions from games not used in training:
+
+| step | positions seen | eval loss | legal-move rate | top-1 | top-3 | value acc |
+|---|---|---|---|---|---|---|
+| 200 | 25,600 | 5.88 | 41.0% | 12.9% | 27.9% | 50.6% |
+| 1,000 | 128,000 | 5.04 | 61.3% | 15.0% | 34.6% | 56.1% |
+| 2,000 | 256,000 | 4.79 | 68.0% | 19.5% | 37.1% | 52.5% |
+| 3,000 | 384,000 | 4.60 | 64.1% | 19.3% | 38.5% | 53.5% |
+| 4,000 | 512,000 | 4.68 | 67.6% | 19.3% | 38.3% | 56.2% |
+| 5,000 | 640,000 | 4.47 | 67.4% | 22.1% | 42.2% | 55.7% |
+| 6,000 | 768,000 | 4.60 | 68.0% | 20.3% | 39.5% | 54.5% |
+
+Chance levels: 0.7% legal, about 3% top-1, 9% top-3, 33% value; the loss starts at ln 4096 =
+8.32. Best values over the run: legal 72.1%, top-1 22.5%, top-3 42.2%, value 57.0%.
+Curves: `data/phase3_curve.svg`.
+
+**Mac pilot (control).** The per-neuron variant (432,627 brain parameters) on the Mac, 1,200
+steps of 8 positions: legal 16.8%, top-1 6.2%, top-3 15.6% at the end (best 25.8% / 10.2% /
+20.7%). With the wiring fixed and only per-neuron scaling learned, the fly learns far less;
+letting every synapse change its strength is what makes the difference. Curve:
+`data/phase3_curve_pilot.svg`.
+
+**Reading.** The fly's brain, with learned synaptic gains, goes from random to a 20% agreement
+with human moves and a two-in-three legal rate after seeing three quarters of a million
+positions once, and the loss is still falling at the end. The Phase 3 targets (99% legal,
+35% top-1, 60% top-3) are not reached: legality plateaus in the high sixties, which says the
+move prior is learned but the board is still read imperfectly through the descending neurons.
+Next levers, in order: more training (the curve has not flattened; about 14 more GPU-hours
+are affordable on the current credit), the three controls from the rules of the game
+(rewired, sign-shuffled, dense), and, if legality stays capped, letting the modulatory
+connections act as learned gates as the plan's fallback allows.
+
+<!-- PHASE3_RESULTS:end -->
