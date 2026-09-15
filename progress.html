@@ -26,7 +26,7 @@
 </style>
 <main>
   <h1>Fly Chess <em>progress</em></h1>
-  <p class="sub">Updates every 2 seconds from <code>data/progress.txt</code>. Keep this tab open.</p>
+  <p class="sub">Updates every 2 seconds from <code>data/progress.txt</code> (this Mac) and <code>data/progress_gpu.txt</code> (the rented GPU). Keep this tab open.</p>
   <div id="jobs"></div>
   <p class="foot" id="foot">connecting…</p>
 </main>
@@ -35,8 +35,8 @@ const jobs = document.getElementById("jobs"), foot = document.getElementById("fo
 let lastChange = Date.now(), lastText = "";
 async function tick() {
   try {
-    const r = await fetch("data/progress.txt?ts=" + Date.now(), { cache: "no-store" });
-    const text = await r.text();
+    const parts = await Promise.all(["data/progress.txt", "data/progress_gpu.txt"].map(async f => { try { const r = await fetch(f + "?ts=" + Date.now(), { cache: "no-store" }); return r.ok ? await r.text() : ""; } catch (e) { return ""; } }));
+    const text = parts.join("\n");
     if (text !== lastText) { lastChange = Date.now(); lastText = text; }
     const lines = text.split("\n").filter(l => l.trim());
     const done = lines.some(l => /^done$|: done$/.test(l.trim()));

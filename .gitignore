@@ -15,3 +15,5 @@ data/.launch_ok
 data/.ab_*
 data/positions_*.jsonl.gz
 data/train_*/
+.vast*
+.env
