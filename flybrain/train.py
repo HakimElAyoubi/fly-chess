@@ -112,7 +112,7 @@ def main():
     opt = torch.optim.AdamW(groups)
     step0 = 0
     if a.resume:
-        ck = torch.load(a.resume, map_location=a.device); model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
+        ck = torch.load(a.resume, map_location=a.device); model.load_state_dict(ck["model"], strict=False); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
     log = open(out / "log.jsonl", "a") if main_rank else None
     rng = np.random.default_rng(step0 * 1000 + rank)
     t0 = time.time(); run_loss = None

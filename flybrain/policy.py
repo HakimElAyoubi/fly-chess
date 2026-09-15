@@ -89,13 +89,13 @@ class FlyPolicy(nn.Module):
         crow = torch.from_numpy(Wn.indptr.astype(np.int64)); col = torch.from_numpy(Wn.indices.astype(np.int64)); val = torch.from_numpy(Wn.data.astype(np.float32))
         self.edge_gains = edge_gains
         if edge_gains:
-            self.register_buffer("crow", crow.to(self.device)); self.register_buffer("col", col.to(self.device))
-            self.register_buffer("base_val", val.to(self.device))
+            self.register_buffer("crow", crow.to(self.device), persistent=False); self.register_buffer("col", col.to(self.device), persistent=False)
+            self.register_buffer("base_val", val.to(self.device), persistent=False)
             # transposed pattern and the permutation that maps its entries back to W's entries
             tag = sp.csr_matrix((np.arange(Wn.nnz, dtype=np.float64), Wn.indices, Wn.indptr), shape=Wn.shape).T.tocsr()
-            self.register_buffer("crowT", torch.from_numpy(tag.indptr.astype(np.int64)).to(self.device))
-            self.register_buffer("colT", torch.from_numpy(tag.indices.astype(np.int64)).to(self.device))
-            self.register_buffer("perm", torch.from_numpy(tag.data.astype(np.int64)).to(self.device))
+            self.register_buffer("crowT", torch.from_numpy(tag.indptr.astype(np.int64)).to(self.device), persistent=False)
+            self.register_buffer("colT", torch.from_numpy(tag.indices.astype(np.int64)).to(self.device), persistent=False)
+            self.register_buffer("perm", torch.from_numpy(tag.data.astype(np.int64)).to(self.device), persistent=False)
             self.pattern = torch.sparse_csr_tensor(self.crow, self.col, torch.zeros(len(val), device=self.device), size=(self.N, self.N))
             self.log_edge_gain = nn.Parameter(torch.zeros(len(val), device=self.device))
         else:
@@ -106,7 +106,7 @@ class FlyPolicy(nn.Module):
         self.log_gain_out = nn.Parameter(torch.zeros(self.N, 1, device=self.device))   # output gain per neuron
         self.log_gain_in = nn.Parameter(torch.zeros(self.N, 1, device=self.device))    # input gain per neuron
         self.bias = nn.Parameter(torch.zeros(self.N, 1, device=self.device))
-        self.register_buffer("dn", torch.as_tensor(meta.index[meta.superclass == "descending_neuron"].to_numpy().copy(), device=self.device))
+        self.register_buffer("dn", torch.as_tensor(meta.index[meta.superclass == "descending_neuron"].to_numpy().copy(), device=self.device), persistent=False)
         # fixed standardisation of the descending-neuron rates before the linear heads (set by
         # calibrate(); the untrained rates are ~1e-5, far too small for the heads to learn from)
         self.register_buffer("dn_mean", torch.zeros(len(self.dn), device=self.device))
