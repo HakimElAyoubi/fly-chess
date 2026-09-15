@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-label="Learning curves of the digital fly: legal-move rate, top-1 and top-3 agreement with human moves, and value accuracy against training steps">
+<rect width="100%" height="100%" fill="none"/>
+<line x1="56" y1="200.0" x2="704" y2="200.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="204.0" font-size="11" text-anchor="end" fill="currentColor">25%</text>
+<line x1="56" y1="140.0" x2="704" y2="140.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="144.0" font-size="11" text-anchor="end" fill="currentColor">50%</text>
+<line x1="56" y1="80.0" x2="704" y2="80.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="84.0" font-size="11" text-anchor="end" fill="currentColor">75%</text>
+<line x1="56" y1="20.0" x2="704" y2="20.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="24.0" font-size="11" text-anchor="end" fill="currentColor">100%</text>
+<line x1="56" y1="260.0" x2="704" y2="260.0" stroke="currentColor" stroke-opacity="0.4"/>
+<text x="56.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">0</text>
+<text x="164.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">200</text>
+<text x="272.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">400</text>
+<text x="380.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">600</text>
+<text x="488.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">800</text>
+<text x="596.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">1,000</text>
+<text x="704.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">1,200</text>
+<text x="380" y="296" font-size="11" text-anchor="middle" fill="currentColor" opacity="0.7">training steps (×8 positions)</text>
+<polyline points="110.0,207.4 164.0,221.6 218.0,211.3 272.0,212.2 326.0,214.2 380.0,228.1 434.0,222.6 488.0,201.0 542.0,222.6 596.0,215.8 650.0,198.1 704.0,219.7" fill="none" stroke="#1A7F9C" stroke-width="2"/>
+<text x="708.0" y="223.7" font-size="11" fill="#1A7F9C">legal rate 17%</text>
+<polyline points="110.0,245.1 164.0,245.8 218.0,235.5 272.0,238.4 326.0,237.4 380.0,247.8 434.0,247.8 488.0,247.8 542.0,240.3 596.0,249.7 650.0,243.2 704.0,245.1" fill="none" stroke="#B4562E" stroke-width="2"/>
+<text x="708.0" y="249.1" font-size="11" fill="#B4562E">top-1 6%</text>
+<polyline points="110.0,224.5 164.0,210.3 218.0,211.3 272.0,214.2 326.0,216.8 380.0,217.8 434.0,216.8 488.0,215.8 542.0,214.9 596.0,221.6 650.0,214.2 704.0,222.6" fill="none" stroke="#7BA05B" stroke-width="2"/>
+<text x="708.0" y="226.6" font-size="11" fill="#7BA05B">top-3 16%</text>
+<polyline points="110.0,132.6 164.0,157.8 218.0,156.8 272.0,155.8 326.0,133.5 380.0,152.2 434.0,127.8 488.0,130.6 542.0,141.9 596.0,148.4 650.0,148.4 704.0,132.6" fill="none" stroke="#8B909D" stroke-width="2"/>
+<text x="708.0" y="136.6" font-size="11" fill="#8B909D">value acc 53%</text>
+<text x="56" y="14" font-size="12" fill="currentColor" font-weight="600">Mac pilot, per-neuron gains</text></svg>

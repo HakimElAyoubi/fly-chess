@@ -84,11 +84,16 @@ Table and details in flybrain/README.md.
    with untrained gains. Probe DNs too (baseline).
 Done when: the optic lobe provably carries the whole board.
 
-### 3 — Teach it the rules and good moves (weeks 4–6) — IN PROGRESS (pipeline built 2026-09-15)
+### 3 — Teach it the rules and good moves (weeks 4–6) — IN PROGRESS (first GPU run 2026-09-15)
 Pipeline: flybrain/data.py (Lichess stream), policy.py (eye → network with learned gains → DN readout),
 train.py (imitation loss, legality/top-1/top-3 metrics, checkpoints, progress bar). Mac pilot running
 with per-neuron gains; the per-edge variant is one flag away and needs a rented GPU.
-<!-- PHASE3_RESULTS -->
+<!-- PHASE3_RESULTS:begin -->
+GPU run (RTX 4090 on Vast.ai, per-edge gains, 6,000 steps × 128 positions, 125 min, ~$1): legal 68.0%
+(best 72.1%), top-1 20.3% (best 22.5%), top-3 39.5% (best 42.2%), value 54.5%;
+eval loss 8.32 → 4.60, still falling. Mac control with per-neuron gains only: legal 16.8%, top-1 6.2%.
+Targets (99% legal, 35% top-1) not reached yet; next: longer training, then the three controls.
+<!-- PHASE3_RESULTS:end -->
 1. Data: Lichess DB, ≥ 10 M positions (1600–2200), Stockfish depth-10 labels for 1 M; python-chess.
 2. Readout: linear, 1,314 DN rates → 4,096 + 4 logits; unmasked in training, masked at play.
 3. Loss: cross-entropy on target move + value head (W/D/L). AdamW, clipping, T = 32.
