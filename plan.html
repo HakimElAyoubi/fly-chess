@@ -131,7 +131,7 @@
       <li><a href="#p0"><span class="n">0</span><span>Know the data<span class="w">done</span></span></a></li>
       <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
       <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">done</span></span></a></li>
-      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">weeks 4–6</span></span></a></li>
+      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">in progress</span></span></a></li>
       <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
       <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
       <li><a href="#p6"><span class="n">6</span><span>Ship the demo<span class="w">weeks 13–14</span></span></a></li>
@@ -329,8 +329,12 @@
     </section>
 
     <section class="phase" id="p3">
-      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">weeks 4–6</span></div>
+      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">in progress · pipeline built 15 Sep 2026</span></div>
       <p class="goal">Given a board, the descending neurons produce a legal and plausible move.</p>
+      <div class="callout">
+        <!-- PHASE3_RESULTS -->
+        <p><b>Status.</b> The full training pipeline exists and runs end to end on the Mac: a Lichess data feed, the differentiable fly with learned gains and biases, the descending-neuron move and value heads, legality and imitation metrics, checkpoints and a progress bar. A pilot with per-neuron gains is training on 9,600 positions; the per-edge variant is one flag away and waits for a rented GPU.</p>
+      </div>
       <ol class="steps">
         <li><span><b>Data.</b> The Lichess open database: at least 10 million positions from games rated 1600 to 2200, plus Stockfish best moves at depth 10 for a 1-million-position subset. Parse and check legality with python-chess.</span></li>
         <li><span><b>Readout.</b> One linear layer from the 1,314 descending-neuron rates to 4,096 from-square × to-square logits plus 4 promotion logits. Train it unmasked so legality has to be learned; mask to legal moves only when playing.</span></li>

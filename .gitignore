@@ -13,3 +13,5 @@ data/probe_features.npz
 data/progress.txt
 data/.launch_ok
 data/.ab_*
+data/positions_*.jsonl.gz
+data/train_*/

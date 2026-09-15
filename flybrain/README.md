@@ -1,4 +1,4 @@
-# flybrain — the digital fly (Phases 1–2)
+# flybrain — the digital fly (Phases 1–3)
 
 A connectome-constrained rate model of the male fruit fly brain, built from MaleCNS v1.0.
 
@@ -9,7 +9,12 @@ A connectome-constrained rate model of the male fruit fly brain, built from Male
 | `checks.py` | the two biology checks and gain calibration → `data/checks.json` |
 | `export_activity.py` | tick-by-tick activity of both experiments → `data/activity.json` (injected into the atlas by `build_viewer.py`) |
 | `eye.py` | the right eye as a screen: column map, photoreceptor placement, chessboard → photoreceptor currents |
-| `probe.py` | Phase 2 probe: random positions through the model, linear readout of the board from each stage → `data/probe.json` |
+| `probe.py` | Phase 2 probe: random positions through the model, cached features → `data/probe_features.npz` |
+| `probe_fit.py` | Phase 2 readouts (generic and retinotopic) from the cache → `data/probe.json` |
+| `data.py` | Phase 3 data: streams the Lichess monthly database, keeps rated 1600–2200 games, samples positions → `data/positions_<tag>.jsonl.gz` |
+| `policy.py` | Phase 3 model: the fly as a chess policy (eye → network with learned gains → descending-neuron readout) |
+| `train.py` | Phase 3 training loop: imitation of human moves, legality / top-1 / top-3 metrics, checkpoints, progress bar |
+| `progress.py` | progress bar for long jobs → `data/progress.txt` (live page: `progress.html`) |
 
 Run order (from the project root, with `.venv` active):
 
@@ -123,3 +128,55 @@ always answers "empty" scores 40% on random placements and about 44% on random p
 **Verdict: target met.** The plan asks for more than 99.5% of squares read from the medulla and lobula by a linear readout. The generic readout, principal components of the whole stage, gives 99.98% on random placements and 100.0% on realistic positions (kept 176 components, partial scaling, penalty 1e-08); the retinotopic readout, each square read from the neurons of its own eye columns, gives 100.0% / 100.0%. Of the two levers, the training set was the one that mattered: at 3,072 boards the generic readout reached 91.6%, at 7,168 boards 99.98%, with the probe's component floor, scaling and penalty chosen on the validation split. The receptor-rate cap made no difference (0.8, 0.5 and 0.3 gave the same retinotopic accuracy on a pilot) and stays at 0.8. The stimulus itself reads at 100.0%, the lamina at 100.0% and the visual projection neurons at 99.98%: the whole board leaves the optic lobe intact. It then thins out in the untrained central brain (66.9%) and reaches the descending neurons at 50.1% (63.5% realistic), the baseline Phase 3 must beat.
 <!-- RESULTS:end -->
 
+
+## Phase 3: teaching it the rules and the taste of a good move
+
+**The policy.** A position is painted on the right eye exactly as in Phase 2, the network runs
+for 24 ticks, and the rates of the 1,314 descending neurons are read by two linear heads: a
+move head (from-square × to-square, 4,096 logits, plus 5 promotion logits) and a value head
+(win / draw / loss). Descending-neuron rates are standardised by a fixed per-neuron scale set
+once at the start of training (`FlyPolicy.calibrate`), because the untrained network's responses
+at that depth are about 1e-5 wide; the scale is capped at ten times its median so that a silent
+neuron cannot become a noise amplifier. At play time the move head is masked to legal moves; in
+training it is not, so legality has to be learned.
+
+**What is learned.** Two variants share one code path.
+
+- *Mac-sized (this pilot):* a positive output gain per neuron, a positive input gain per neuron
+  and a bias per neuron, 3 × 144,209 = 432,627 brain parameters, plus the heads (5.4 M). The
+  wiring, signs and synapse counts are fixed, and so is the shape of every neuron's input.
+- *Per-edge gains (`--edge-gains`, GPU):* a positive gain on each of the 21.27 M connections,
+  the plan's main variant. Same rules, far more freedom.
+
+Backpropagation runs through time over the 24 ticks with a custom autograd function that uses
+a precomputed transpose of the sparse matrix, so no sparse tensor is ever differentiated. Biases
+get a learning rate of 1e-6 (a bias shift of 1e-5 already moves a descending neuron by one
+standard deviation of its signal), gains and heads 3e-3, each group clipped on its own.
+
+**Data.** `data.py` streams the Lichess monthly database (zstd, tens of GB) and stops after the
+requested number of games, so only a few tens of MB are downloaded: rated standard games with
+both players between 1600 and 2200, no bullet, eight positions sampled per game after the
+sixth ply, with the move that was played and the game result. Held-out games (10%) provide the
+evaluation positions. Known blind spot: the eye sees pieces and whose turn it is, not castling
+rights or en passant; the legal-move mask handles it at play time.
+
+**Metrics.** On held-out positions: *legal rate* of the unmasked argmax (chance ≈ 0.7%),
+*top-1* and *top-3* agreement with the human move among legal moves (chance ≈ 3% and 9%),
+value accuracy (chance 33%). Phase 3 targets: legal rate > 99%, top-1 ≥ 35%, top-3 ≥ 60%.
+
+**Speed on the Mac.** One step of 8 positions × 24 ticks takes about 7 s (3.6 s forward,
+3.6 s backward); 1,200 steps see 9,600 positions in under three hours. That is a pilot, not
+training: the plan's 10 M positions per epoch need a CUDA GPU.
+
+**Running on a GPU.** Rent a machine with an RTX 4090 or A100 class card, clone the repo, put
+the three MaleCNS tables in `data/` (see MALECNS_NOTES.md), then:
+
+```bash
+pip install torch numpy pandas pyarrow scipy python-chess zstandard requests
+python -m flybrain.graph && python -m flybrain.checks
+python -m flybrain.data 400000 full            # ~3.2 M positions
+python -m flybrain.train --device cuda --edge-gains --positions data/positions_full.jsonl.gz \
+       --steps 200000 --batch 128 --ticks 24 --eval-every 1000 --tag edge
+```
+
+<!-- PHASE3_RESULTS -->
