@@ -1,0 +1,139 @@
+"""The digital fly as a chess policy (Phase 3).
+
+Board -> right eye (Eye.encode) -> the connectome-constrained network run for T ticks ->
+descending-neuron rates -> a linear move readout (from-square x to-square = 4,096 logits, plus
+5 promotion logits) and a linear value head (win / draw / loss).
+
+What is learned, in this Mac-sized variant: a positive output gain per neuron, a positive input
+gain per neuron, and a bias per neuron (3 x 144,209 parameters), plus the two linear heads.
+The wiring, the signs and the synapse counts stay fixed. Per-edge gains (21 M parameters) are
+the GPU variant and use the same code path with `edge_gains=True`.
+"""
+import json
+import numpy as np
+import scipy.sparse as sp
+import torch
+import torch.nn as nn
+import chess
+from .graph import load, DATA
+from .model import FlyBrain
+
+N_MOVES = 64 * 64
+PROMO = {None: 0, chess.QUEEN: 1, chess.ROOK: 2, chess.BISHOP: 3, chess.KNIGHT: 4}
+PROMO_INV = {v: k for k, v in PROMO.items()}
+
+
+def move_index(move: chess.Move):
+    return move.from_square * 64 + move.to_square, PROMO[move.promotion]
+
+
+def index_move(idx, promo, board=None):
+    m = chess.Move(idx // 64, idx % 64, promotion=PROMO_INV[int(promo)] if promo else None)
+    if board is not None and m.promotion is None:
+        pc = board.piece_at(m.from_square)
+        if pc is not None and pc.piece_type == chess.PAWN and chess.square_rank(m.to_square) in (0, 7):
+            m = chess.Move(m.from_square, m.to_square, promotion=chess.QUEEN)
+    return m
+
+
+class SpMM(torch.autograd.Function):
+    """y = W @ r for a fixed sparse W; the backward pass uses the precomputed transpose."""
+    @staticmethod
+    def forward(ctx, W, WT, r):
+        ctx.WT = WT
+        return torch.sparse.mm(W, r)
+
+    @staticmethod
+    def backward(ctx, g):
+        return None, None, torch.sparse.mm(ctx.WT, g)
+
+
+class EdgeSpMM(torch.autograd.Function):
+    """y = W(v) @ r with learnable values v (per-edge gains, GPU variant)."""
+    @staticmethod
+    def forward(ctx, crow, col, v, r, N, rows_of_edge):
+        W = torch.sparse_csr_tensor(crow, col, v, size=(N, N))
+        ctx.save_for_backward(col, v, r, rows_of_edge)
+        ctx.crow, ctx.N = crow, N
+        return torch.sparse.mm(W, r)
+
+    @staticmethod
+    def backward(ctx, g):
+        col, v, r, rows = ctx.saved_tensors
+        # dL/dv_e = g[row_e] . r[col_e]
+        gv = (g[rows] * r[col]).sum(1)
+        WT = torch.sparse_csr_tensor(ctx.crow, col, v, size=(ctx.N, ctx.N)).t().to_sparse_csr()
+        return None, None, gv, torch.sparse.mm(WT, g), None, None
+
+
+class FlyPolicy(nn.Module):
+    def __init__(self, device="cpu", ticks=24, edge_gains=False):
+        super().__init__()
+        W, meta = load()
+        cfg = json.load(open(DATA / "checks.json"))["chosen_config"]
+        self.meta, self.cfg, self.ticks, self.k = meta, cfg, ticks, 0.25
+        base = FlyBrain(W, device="cpu", **cfg)                       # builds the normalised, gained matrix
+        Wn = sp.csr_matrix((base.W.values().numpy(), base.W.col_indices().numpy(), base.W.crow_indices().numpy()), shape=(base.N, base.N))
+        self.N = base.N
+        self.device = torch.device(device)
+        crow = torch.from_numpy(Wn.indptr.astype(np.int64)); col = torch.from_numpy(Wn.indices.astype(np.int64)); val = torch.from_numpy(Wn.data.astype(np.float32))
+        self.edge_gains = edge_gains
+        if edge_gains:
+            self.register_buffer("crow", crow.to(self.device)); self.register_buffer("col", col.to(self.device))
+            self.register_buffer("base_val", val.to(self.device))
+            rows = torch.repeat_interleave(torch.arange(self.N), torch.diff(crow))
+            self.register_buffer("rows_of_edge", rows.to(self.device))
+            self.log_edge_gain = nn.Parameter(torch.zeros(len(val), device=self.device))
+        else:
+            self.W = torch.sparse_csr_tensor(crow, col, val, size=(self.N, self.N)).to(self.device)
+            WT = Wn.T.tocsr()
+            self.WT = torch.sparse_csr_tensor(torch.from_numpy(WT.indptr.astype(np.int64)), torch.from_numpy(WT.indices.astype(np.int64)),
+                                              torch.from_numpy(WT.data.astype(np.float32)), size=(self.N, self.N)).to(self.device)
+        self.log_gain_out = nn.Parameter(torch.zeros(self.N, 1, device=self.device))   # output gain per neuron
+        self.log_gain_in = nn.Parameter(torch.zeros(self.N, 1, device=self.device))    # input gain per neuron
+        self.bias = nn.Parameter(torch.zeros(self.N, 1, device=self.device))
+        self.dn = torch.as_tensor(meta.index[meta.superclass == "descending_neuron"].to_numpy().copy(), device=self.device)
+        # fixed standardisation of the descending-neuron rates before the linear heads (set by
+        # calibrate(); the untrained rates are ~1e-5, far too small for the heads to learn from)
+        self.register_buffer("dn_mean", torch.zeros(len(self.dn), device=self.device))
+        self.register_buffer("dn_scale", torch.ones(len(self.dn), device=self.device))
+        self.readout = nn.Linear(len(self.dn), N_MOVES + 5).to(self.device)
+        self.value = nn.Linear(len(self.dn), 3).to(self.device)
+
+    @torch.no_grad()
+    def calibrate(self, I):
+        """Set the descending-neuron standardisation from a batch of input currents [N, B]."""
+        dn = self.run(I)
+        self.dn_mean.copy_(dn.mean(0))
+        scale = 1.0 / (dn.std(0) + 1e-12)
+        self.dn_scale.copy_(torch.minimum(scale, 10.0 * scale.median()))          # cap: a silent neuron must not become a noise amplifier
+
+    def run(self, I):
+        """I: [N, B] input currents -> descending-neuron rates [B, n_dn]."""
+        r = torch.zeros(self.N, I.shape[1], device=self.device)
+        g_out, g_in = torch.exp(self.log_gain_out), torch.exp(self.log_gain_in)
+        for _ in range(self.ticks):
+            pre = g_out * r
+            if self.edge_gains:
+                syn = EdgeSpMM.apply(self.crow, self.col, self.base_val * torch.exp(self.log_edge_gain), pre, self.N, self.rows_of_edge)
+            else:
+                syn = SpMM.apply(self.W, self.WT, pre)
+            x = g_in * syn + I + self.bias
+            r = r + self.k * (torch.tanh(x) - r)
+        return r[self.dn].T
+
+    def forward(self, I):
+        dn = (self.run(I) - self.dn_mean) * self.dn_scale
+        out = self.readout(dn)
+        return out[:, :N_MOVES], out[:, N_MOVES:], self.value(dn), dn
+
+    def n_params(self):
+        return {n: int(p.numel()) for n, p in self.named_parameters()}
+
+
+def legal_mask(boards, device="cpu"):
+    m = torch.full((len(boards), N_MOVES), float("-inf"), device=device)
+    for i, b in enumerate(boards):
+        for mv in b.legal_moves:
+            m[i, mv.from_square * 64 + mv.to_square] = 0.0
+    return m
