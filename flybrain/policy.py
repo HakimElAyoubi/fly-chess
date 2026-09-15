@@ -49,21 +49,31 @@ class SpMM(torch.autograd.Function):
 
 
 class EdgeSpMM(torch.autograd.Function):
-    """y = W(v) @ r with learnable values v (per-edge gains, GPU variant)."""
+    """y = W(v) @ r with learnable values v (per-edge gains).
+    backward: dL/dr = W(v)^T g, using the precomputed transposed pattern and a permutation of v;
+              dL/dv_e = sum_b g[row_e, b] r[col_e, b], a sampled dense-dense product on W's pattern."""
     @staticmethod
-    def forward(ctx, crow, col, v, r, N, rows_of_edge):
+    def forward(ctx, v, r, crow, col, crowT, colT, perm, pattern, N):
         W = torch.sparse_csr_tensor(crow, col, v, size=(N, N))
-        ctx.save_for_backward(col, v, r, rows_of_edge)
-        ctx.crow, ctx.N = crow, N
+        ctx.save_for_backward(v, r, crow, col, crowT, colT, perm)
+        ctx.pattern, ctx.N = pattern, N
         return torch.sparse.mm(W, r)
 
     @staticmethod
     def backward(ctx, g):
-        col, v, r, rows = ctx.saved_tensors
-        # dL/dv_e = g[row_e] . r[col_e]
-        gv = (g[rows] * r[col]).sum(1)
-        WT = torch.sparse_csr_tensor(ctx.crow, col, v, size=(ctx.N, ctx.N)).t().to_sparse_csr()
-        return None, None, gv, torch.sparse.mm(WT, g), None, None
+        v, r, crow, col, crowT, colT, perm = ctx.saved_tensors
+        WT = torch.sparse_csr_tensor(crowT, colT, v[perm], size=(ctx.N, ctx.N))
+        grad_r = torch.sparse.mm(WT, g)
+        g = g.contiguous(); rT = r.T.contiguous()
+        try:
+            grad_v = torch.sparse.sampled_addmm(ctx.pattern, g, rT).values()
+        except (RuntimeError, NotImplementedError):                          # no SDDMM on this device: chunk over edges
+            rows = torch.repeat_interleave(torch.arange(ctx.N, device=g.device), torch.diff(crow))
+            grad_v = torch.empty_like(v)
+            step = 2_000_000
+            for s in range(0, len(v), step):
+                grad_v[s:s + step] = (g[rows[s:s + step]] * r[col[s:s + step]]).sum(1)
+        return grad_v, grad_r, None, None, None, None, None, None, None
 
 
 class FlyPolicy(nn.Module):
@@ -81,8 +91,12 @@ class FlyPolicy(nn.Module):
         if edge_gains:
             self.register_buffer("crow", crow.to(self.device)); self.register_buffer("col", col.to(self.device))
             self.register_buffer("base_val", val.to(self.device))
-            rows = torch.repeat_interleave(torch.arange(self.N), torch.diff(crow))
-            self.register_buffer("rows_of_edge", rows.to(self.device))
+            # transposed pattern and the permutation that maps its entries back to W's entries
+            tag = sp.csr_matrix((np.arange(Wn.nnz, dtype=np.float64), Wn.indices, Wn.indptr), shape=Wn.shape).T.tocsr()
+            self.register_buffer("crowT", torch.from_numpy(tag.indptr.astype(np.int64)).to(self.device))
+            self.register_buffer("colT", torch.from_numpy(tag.indices.astype(np.int64)).to(self.device))
+            self.register_buffer("perm", torch.from_numpy(tag.data.astype(np.int64)).to(self.device))
+            self.pattern = torch.sparse_csr_tensor(self.crow, self.col, torch.zeros(len(val), device=self.device), size=(self.N, self.N))
             self.log_edge_gain = nn.Parameter(torch.zeros(len(val), device=self.device))
         else:
             self.W = torch.sparse_csr_tensor(crow, col, val, size=(self.N, self.N)).to(self.device)
@@ -92,7 +106,7 @@ class FlyPolicy(nn.Module):
         self.log_gain_out = nn.Parameter(torch.zeros(self.N, 1, device=self.device))   # output gain per neuron
         self.log_gain_in = nn.Parameter(torch.zeros(self.N, 1, device=self.device))    # input gain per neuron
         self.bias = nn.Parameter(torch.zeros(self.N, 1, device=self.device))
-        self.dn = torch.as_tensor(meta.index[meta.superclass == "descending_neuron"].to_numpy().copy(), device=self.device)
+        self.register_buffer("dn", torch.as_tensor(meta.index[meta.superclass == "descending_neuron"].to_numpy().copy(), device=self.device))
         # fixed standardisation of the descending-neuron rates before the linear heads (set by
         # calibrate(); the untrained rates are ~1e-5, far too small for the heads to learn from)
         self.register_buffer("dn_mean", torch.zeros(len(self.dn), device=self.device))
@@ -115,7 +129,7 @@ class FlyPolicy(nn.Module):
         for _ in range(self.ticks):
             pre = g_out * r
             if self.edge_gains:
-                syn = EdgeSpMM.apply(self.crow, self.col, self.base_val * torch.exp(self.log_edge_gain), pre, self.N, self.rows_of_edge)
+                syn = EdgeSpMM.apply(self.base_val * torch.exp(self.log_edge_gain), pre, self.crow, self.col, self.crowT, self.colT, self.perm, self.pattern, self.N)
             else:
                 syn = SpMM.apply(self.W, self.WT, pre)
             x = g_in * syn + I + self.bias

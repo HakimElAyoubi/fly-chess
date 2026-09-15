@@ -12,6 +12,7 @@ data/train_<tag>/; progress to data/progress.txt.
 import argparse
 import gzip
 import json
+import os
 import time
 from pathlib import Path
 import numpy as np
@@ -77,19 +78,29 @@ def main():
     ap.add_argument("--lr", type=float, default=3e-3); ap.add_argument("--lr-brain", type=float, default=3e-3); ap.add_argument("--lr-bias", type=float, default=1e-6)
     ap.add_argument("--tag", default="pilot"); ap.add_argument("--device", default="cpu")
     ap.add_argument("--edge-gains", action="store_true"); ap.add_argument("--resume", default=None)
-    ap.add_argument("--n-eval", type=int, default=512)
+    ap.add_argument("--n-eval", type=int, default=512); ap.add_argument("--ddp", action="store_true")
     a = ap.parse_args()
+    rank, world = 0, 1
+    if a.ddp:
+        import torch.distributed as dist
+        dist.init_process_group("nccl")
+        rank, world = dist.get_rank(), dist.get_world_size()
+        a.device = f"cuda:{int(os.environ.get('LOCAL_RANK', 0))}"; torch.cuda.set_device(a.device)
+    main_rank = rank == 0
     out = DATA / f"train_{a.tag}"; out.mkdir(exist_ok=True)
     torch.manual_seed(0)
     model = FlyPolicy(device=a.device, ticks=a.ticks, edge_gains=a.edge_gains)
+    net = model
     W, meta = load(); eye = Eye(W, meta)
     batcher = Batcher(eye, model.N, model.device)
     train, held = load_positions(a.positions, n_eval=a.n_eval)
-    print(f"positions: {len(train)} train, {len(held)} held out | params: {sum(p.numel() for p in model.parameters()):,}", flush=True)
+    if main_rank: print(f"positions: {len(train)} train, {len(held)} held out | params: {sum(p.numel() for p in model.parameters()):,} | world {world}", flush=True)
     if not a.resume:
         boards_c, I_c, *_ = batcher.make([train[i] for i in np.random.default_rng(1).integers(len(train), size=32)])
         model.calibrate(I_c)
-        print(f"calibrated the descending-neuron standardisation on 32 positions (scale median {float(model.dn_scale.median()):.3g})", flush=True)
+        if main_rank: print(f"calibrated the descending-neuron standardisation on 32 positions (scale median {float(model.dn_scale.median()):.3g})", flush=True)
+    if a.ddp:
+        net = torch.nn.parallel.DistributedDataParallel(model, device_ids=[torch.cuda.current_device()])
     # the descending-neuron signal is ~1e-5 wide, so a bias shift of that size already moves the
     # readout by a full standard deviation: biases get a learning rate of that order, log-gains
     # (multiplicative) a normal one, and every group is clipped on its own
@@ -102,13 +113,13 @@ def main():
     step0 = 0
     if a.resume:
         ck = torch.load(a.resume, map_location=a.device); model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
-    log = open(out / "log.jsonl", "a")
-    rng = np.random.default_rng(step0)
+    log = open(out / "log.jsonl", "a") if main_rank else None
+    rng = np.random.default_rng(step0 * 1000 + rank)
     t0 = time.time(); run_loss = None
     for step in range(step0 + 1, a.steps + 1):
         recs = [train[i] for i in rng.integers(len(train), size=a.batch)]
         boards, I, idx, promo, val = batcher.make(recs)
-        logits, plog, vlog, _ = model(I)
+        logits, plog, vlog, _ = net(I)
         loss = (torch.nn.functional.cross_entropy(logits, idx) + 0.2 * torch.nn.functional.cross_entropy(plog, promo)
                 + 0.2 * torch.nn.functional.cross_entropy(vlog, val))
         opt.zero_grad(); loss.backward()
@@ -116,8 +127,8 @@ def main():
             torch.nn.utils.clip_grad_norm_(g["params"], 5.0)
         opt.step()
         run_loss = float(loss) if run_loss is None else 0.98 * run_loss + 0.02 * float(loss)
-        progress(step, a.steps, t0, f"train {a.tag}: loss {run_loss:.3f}")
-        if step % a.eval_every == 0 or step == a.steps:
+        if main_rank: progress(step, a.steps, t0, f"train {a.tag}: loss {run_loss:.3f}")
+        if main_rank and (step % a.eval_every == 0 or step == a.steps):
             ev = evaluate(model, batcher, held, a.batch)
             ev.update({"step": step, "train_loss": run_loss, "elapsed_min": (time.time() - t0) / 60})
             log.write(json.dumps(ev) + "\n"); log.flush()
