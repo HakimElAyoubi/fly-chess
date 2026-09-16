@@ -13,5 +13,5 @@ for i in 1 2 3 4 5 6 7 8; do bash remote/ssh.sh "echo ssh ok" 2>/dev/null && bre
 bash remote/ssh.sh "nvidia-smi -L | head -8; python -c 'import torch; print(\"torch\", torch.__version__, \"cuda\", torch.version.cuda, torch.cuda.is_available())'; mkdir -p /workspace/fly-chess/data" 2>/dev/null
 bash remote/push.sh 2>/dev/null && echo "code pushed"
 bash remote/ssh.sh "cd /workspace/fly-chess && (setsid nohup bash remote/run_gpu_multi.sh $HOURS > run_gpu.log 2>&1 < /dev/null &) ; sleep 3; pgrep -fl '[r]un_gpu_multi' | head -1" 2>/dev/null
-pkill -f "remote/[s]ync.sh" 2>/dev/null; (nohup bash remote/sync.sh > /dev/null 2>&1 &)
+pkill -f "remote/[s]ync.sh" 2>/dev/null || true; (nohup bash remote/sync.sh > /dev/null 2>&1 &)
 echo "launched; sync loop running"
