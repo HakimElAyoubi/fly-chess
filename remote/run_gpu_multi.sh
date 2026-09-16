@@ -37,4 +37,10 @@ tail -q -n 1 data/stream_full*.log
 LEFT=$(python -c "import time; print(max(600, int($HOURS*3600 - (time.time() - $START))))")
 echo "=== stage 2: full set, $LEFT s left in the budget"
 timeout ${LEFT}s torchrun --nproc_per_node=$NG -m flybrain.train --ddp --edge-gains --positions data/positions_full.jsonl.gz --resume data/train_gpu/checkpoint.pt --steps 100000 --batch $BATCH --tag gpu --eval-every 200 --n-eval 512 || echo "=== stage 2 ended (timeout or error, exit $?)"
-echo "=== done"
+echo "=== done: $(date -u)"
+# stop this instance from inside (disk kept, GPU billing ends) so nothing depends on the laptop
+if [ -n "$CONTAINER_API_KEY" ] && [ -n "$CONTAINER_ID" ]; then
+  curl -s -X PUT "https://console.vast.ai/api/v0/instances/$CONTAINER_ID/" -H "Authorization: Bearer $CONTAINER_API_KEY" -H "Content-Type: application/json" -d '{"state":"stopped"}' && echo " self-stop requested"
+else
+  echo "no container api key in the environment; the instance must be stopped from outside"
+fi
