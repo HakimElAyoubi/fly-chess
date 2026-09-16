@@ -89,10 +89,10 @@ Pipeline: flybrain/data.py (Lichess stream), policy.py (eye → network with lea
 train.py (imitation loss, legality/top-1/top-3 metrics, checkpoints, progress bar). Mac pilot running
 with per-neuron gains; the per-edge variant is one flag away and needs a rented GPU.
 <!-- PHASE3_RESULTS:begin -->
-GPU run (RTX 4090 on Vast.ai, per-edge gains, 6,000 steps × 128 positions, 125 min, ~$1): legal 68.0%
-(best 72.1%), top-1 20.3% (best 22.5%), top-3 39.5% (best 42.2%), value 54.5%;
-eval loss 8.32 → 4.60, still falling. Mac control with per-neuron gains only: legal 16.8%, top-1 6.2%.
-Targets (99% legal, 35% top-1) not reached yet; next: longer training, then the three controls.
+GPU runs: (1) one RTX 4090, 768k positions: legal 68.0%, top-1 20.3%; (2) four RTX 5090s,
+6.2 M positions: legal 79.3% (best 80.9%), top-1 24.0% (best 26.4%),
+top-3 49.0% (best 49.8%), eval loss 3.48. Mac control (per-neuron gains): 16.8% / 6.2%.
+The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. One operational loss: both copies of the final checkpoint came back corrupt through the rental host's SSH proxy (identical truncated size twice), and the instance was destroyed when the credit ran out, so the trained weights of this run are gone; the logs are complete. Next time the box verifies a checksum before the copy and ships a 55 MB half-precision model-only file. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run from a fresh checkpoint, then the modulatory-gate fallback if legality stays capped.
 <!-- PHASE3_RESULTS:end -->
 1. Data: Lichess DB, ≥ 10 M positions (1600–2200), Stockfish depth-10 labels for 1 M; python-chess.
 2. Readout: linear, 1,314 DN rates → 4,096 + 4 logits; unmasked in training, masked at play.

@@ -16,7 +16,7 @@ The full plan is in [PLAN.md](PLAN.md) (six phases). Status:
 | 0 | Know the data | done |
 | 1 | Build the digital fly | done |
 | 2 | Show it the board | done: the medulla reads 100.0% of squares |
-| 3 | Teach it the rules | in progress: first GPU run reaches 68.0% legal, 20.3% top-1 |
+| 3 | Teach it the rules | in progress: 79.3% legal, 24.0% top-1 after 6.2 M positions |
 | 4 | Make it play | |
 | 5 | Look inside | |
 | 6 | Ship the demo: a 3D fly walks over, moves the piece, and walks back | |
