@@ -56,7 +56,7 @@ def stream(month="2026-08", n_games=40000, elo=(1600, 2200), per_game=8, skip_pl
             board = game.board()
             for ply, mv in enumerate(moves):
                 if ply in picks:
-                    f.write(json.dumps({"fen": board.fen(), "move": mv.uci(), "result": res, "elo": (w + b) // 2, "game": kept}) + "\n")
+                    f.write(json.dumps({"fen": board.fen(), "move": mv.uci(), "result": res, "elo": (w + b) // 2, "game": kept + seed * 10_000_000}) + "\n")
                     n_pos += 1
                 board.push(mv)
             kept += 1
@@ -67,4 +67,5 @@ def stream(month="2026-08", n_games=40000, elo=(1600, 2200), per_game=8, skip_pl
 
 
 if __name__ == "__main__":
-    stream(n_games=int(sys.argv[1]) if len(sys.argv) > 1 else 40000, tag=sys.argv[2] if len(sys.argv) > 2 else "pilot")
+    stream(n_games=int(sys.argv[1]) if len(sys.argv) > 1 else 40000, tag=sys.argv[2] if len(sys.argv) > 2 else "pilot",
+           month=sys.argv[3] if len(sys.argv) > 3 else "2026-08", seed=int(sys.argv[4]) if len(sys.argv) > 4 else 0)
