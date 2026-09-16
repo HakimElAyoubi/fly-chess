@@ -180,43 +180,33 @@ python -m flybrain.train --device cuda --edge-gains --positions data/positions_f
 ```
 
 <!-- PHASE3_RESULTS:begin -->
-## Phase 3 results so far (15 Sep 2026)
+## Phase 3 results (16 Sep 2026)
 
-**GPU run.** One RTX 4090 rented on Vast.ai (instance set up by `remote/run_gpu.sh`): the biology
-checks reproduced exactly on CUDA (gain 1.5), 958,272 positions were streamed from 120,000
-Lichess games, and the per-edge variant (27.1 M parameters: 21.27 M edge gains, 3 × 144,209
-neuron gains and biases, the two heads) trained for 6,000 steps of 128 positions, 768,000
-positions in 125 minutes (1.23 s per step), for about one dollar. Evaluation on 512 held-out
-positions from games not used in training:
+**Second run, four RTX 5090s.** The per-edge variant (27.1 M parameters) trained with data
+parallelism over four GPUs, 512 positions per step at 0.91 s per step, for 12,200 steps:
+6,246,400 positions from 4.3 million distinct ones (600,000 Lichess games streamed on
+the box), 168 minutes of stage 2 after a 23-minute warm-up stage on 431,000 positions.
+Evaluation on 512 held-out positions from games not used in training:
 
 | step | positions seen | eval loss | legal-move rate | top-1 | top-3 | value acc |
 |---|---|---|---|---|---|---|
-| 200 | 25,600 | 5.88 | 41.0% | 12.9% | 27.9% | 50.6% |
-| 1,000 | 128,000 | 5.04 | 61.3% | 15.0% | 34.6% | 56.1% |
-| 2,000 | 256,000 | 4.79 | 68.0% | 19.5% | 37.1% | 52.5% |
-| 3,000 | 384,000 | 4.60 | 64.1% | 19.3% | 38.5% | 53.5% |
-| 4,000 | 512,000 | 4.68 | 67.6% | 19.3% | 38.3% | 56.2% |
-| 5,000 | 640,000 | 4.47 | 67.4% | 22.1% | 42.2% | 55.7% |
-| 6,000 | 768,000 | 4.60 | 68.0% | 20.3% | 39.5% | 54.5% |
+| 200 | 102,400 | 5.24 | 58.6% | 15.8% | 31.1% | 49.0% |
+| 800 | 409,600 | 4.64 | 67.2% | 16.2% | 37.5% | 54.9% |
+| 1,500 | 768,000 | 4.43 | 71.1% | 19.1% | 40.4% | 49.0% |
+| 2,000 | 1,024,000 | 4.12 | 73.4% | 18.8% | 41.4% | 58.8% |
+| 4,000 | 2,048,000 | 4.00 | 75.4% | 22.3% | 42.6% | 53.5% |
+| 6,000 | 3,072,000 | 3.76 | 76.2% | 23.0% | 45.9% | 54.3% |
+| 8,000 | 4,096,000 | 3.75 | 75.0% | 20.5% | 44.7% | 52.7% |
+| 10,000 | 5,120,000 | 3.59 | 78.5% | 23.8% | 49.4% | 54.1% |
+| 12,000 | 6,144,000 | 3.46 | 77.5% | 25.8% | 48.6% | 56.8% |
+| 12,200 | 6,246,400 | 3.48 | 79.3% | 24.0% | 49.0% | 59.0% |
 
-Chance levels: 0.7% legal, about 3% top-1, 9% top-3, 33% value; the loss starts at ln 4096 =
-8.32. Best values over the run: legal 72.1%, top-1 22.5%, top-3 42.2%, value 57.0%.
-Curves: `data/phase3_curve.svg`.
+Best values over the run: legal 80.9%, top-1 26.4%, top-3 49.8%, value 59.0%.
+Chance levels: 0.7% legal, about 3% top-1, 9% top-3, 33% value. Curves: `data/phase3_curve.svg`.
 
-**Mac pilot (control).** The per-neuron variant (432,627 brain parameters) on the Mac, 1,200
-steps of 8 positions: legal 16.8%, top-1 6.2%, top-3 15.6% at the end (best 25.8% / 10.2% /
-20.7%). With the wiring fixed and only per-neuron scaling learned, the fly learns far less;
-letting every synapse change its strength is what makes the difference. Curve:
-`data/phase3_curve_pilot.svg`.
+**First run, one RTX 4090** (768,000 positions, 125 minutes): legal 68.0% (best 72.1%), top-1
+20.3% (best 22.5%), top-3 39.5%. The Mac control with per-neuron gains only: 16.8% legal, 6.2% top-1.
 
-**Reading.** The fly's brain, with learned synaptic gains, goes from random to a 20% agreement
-with human moves and a two-in-three legal rate after seeing three quarters of a million
-positions once, and the loss is still falling at the end. The Phase 3 targets (99% legal,
-35% top-1, 60% top-3) are not reached: legality plateaus in the high sixties, which says the
-move prior is learned but the board is still read imperfectly through the descending neurons.
-Next levers, in order: more training (the curve has not flattened; about 14 more GPU-hours
-are affordable on the current credit), the three controls from the rules of the game
-(rewired, sign-shuffled, dense), and, if legality stays capped, letting the modulatory
-connections act as learned gates as the plan's fallback allows.
+The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. One operational loss: both copies of the final checkpoint came back corrupt through the rental host's SSH proxy (identical truncated size twice), and the instance was destroyed when the credit ran out, so the trained weights of this run are gone; the logs are complete. Next time the box verifies a checksum before the copy and ships a 55 MB half-precision model-only file. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run from a fresh checkpoint, then the modulatory-gate fallback if legality stays capped.
 
 <!-- PHASE3_RESULTS:end -->
