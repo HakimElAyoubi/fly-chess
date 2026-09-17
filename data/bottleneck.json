@@ -1,0 +1,38 @@
+{
+ "weights": "data/train_gpu/model_step11600.pt",
+ "n_positions": 40000,
+ "readout_width": 1314,
+ "n_train": 36000,
+ "populations": {
+  "descending_neuron": {
+   "neurons": 1314,
+   "top1": 0.14124999940395355,
+   "top3": 0.2827500104904175
+  },
+  "central_brain": {
+   "neurons": 32160,
+   "top1": 0.12200000882148743,
+   "top3": 0.24925000965595245
+  },
+  "visual_projection": {
+   "neurons": 9201,
+   "top1": 0.13250000774860382,
+   "top3": 0.2667500078678131
+  },
+  "optic_lobe": {
+   "neurons": 89390,
+   "top1": 0.14150001108646393,
+   "top3": 0.27125000953674316
+  },
+  "descending + central_brain": {
+   "neurons": 33474,
+   "top1": 0.12575000524520874,
+   "top3": 0.24650001525878906
+  },
+  "whole_brain": {
+   "neurons": 144209,
+   "top1": 0.13700000941753387,
+   "top3": 0.27400001883506775
+  }
+ }
+}

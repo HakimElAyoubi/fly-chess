@@ -1,0 +1,33 @@
+{
+ "opponent": "greedy",
+ "games": 200,
+ "fly_temperature": 0.0,
+ "avoid_repetition": true,
+ "wins": 3,
+ "draws": 91,
+ "losses": 106,
+ "score": 0.2425,
+ "score_95ci": [
+  0.20575451451514637,
+  0.2792454854848536
+ ],
+ "elo_diff": -197.86835769442408,
+ "elo_diff_95ci": [
+  -234.6421528009828,
+  -164.72048425438493
+ ],
+ "fly_elo_estimate": null,
+ "fly_elo_95ci": null,
+ "mean_plies": 160.78,
+ "terminations": {
+  "50-move rule": 2,
+  "checkmate": 109,
+  "insufficient material": 12,
+  "max plies": 14,
+  "repetition": 41,
+  "stalemate": 22
+ },
+ "score_as_white": 0.22,
+ "score_as_black": 0.265,
+ "minutes": 133.88074848254521
+}

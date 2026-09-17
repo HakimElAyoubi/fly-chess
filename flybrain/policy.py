@@ -122,6 +122,19 @@ class FlyPolicy(nn.Module):
         scale = 1.0 / (dn.std(0) + 1e-12)
         self.dn_scale.copy_(torch.minimum(scale, 10.0 * scale.median()))          # cap: a silent neuron must not become a noise amplifier
 
+    def run_full(self, I):
+        """I: [N, B] input currents -> every neuron's rate [N, B] at the final tick."""
+        r = torch.zeros(self.N, I.shape[1], device=self.device)
+        g_out, g_in = torch.exp(self.log_gain_out), torch.exp(self.log_gain_in)
+        for _ in range(self.ticks):
+            pre = g_out * r
+            if self.edge_gains:
+                syn = EdgeSpMM.apply(self.base_val * torch.exp(self.log_edge_gain), pre, self.crow, self.col, self.crowT, self.colT, self.perm, self.pattern, self.N)
+            else:
+                syn = SpMM.apply(self.W, self.WT, pre)
+            r = r + self.k * (torch.tanh(g_in * syn + I + self.bias) - r)
+        return r
+
     def run(self, I):
         """I: [N, B] input currents -> descending-neuron rates [B, n_dn]."""
         r = torch.zeros(self.N, I.shape[1], device=self.device)

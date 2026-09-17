@@ -1,1 +1,4 @@
-train ft: loss 3.651     [██████████░░░░░░░░░░░░░░░░░░░░]  31.9% · 1277/4000 · 20.8 min elapsed · 44.3 min left
+bottleneck: activations  [██████████████████████████████] 100.0% · 40000/40000 · 1.8 min elapsed · 0.0 min left
+done
+train ft: loss 3.659     [██████████████████████████████] 100.0% · 6000/6000 · 104.1 min elapsed · 0.0 min left
+done
