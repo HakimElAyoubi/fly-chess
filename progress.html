@@ -26,7 +26,7 @@
 </style>
 <main>
   <h1>Fly Chess <em>progress</em></h1>
-  <p class="sub">Updates every 2 seconds from <code>data/progress.txt</code> (this Mac) and <code>data/progress_gpu.txt</code> (the rented GPU). Keep this tab open.</p>
+  <p class="sub">Every job on this Mac owns a slot in <code>data/progress.json</code>; a rented GPU reports through <code>data/progress_gpu.txt</code>. Refreshes every 2 seconds.</p>
   <div id="jobs"></div>
   <p class="foot" id="foot">connecting…</p>
 </main>
@@ -35,25 +35,47 @@ const jobs = document.getElementById("jobs"), foot = document.getElementById("fo
 let lastChange = Date.now(), lastText = "";
 async function tick() {
   try {
-    const files = ["data/progress.txt", "data/progress_gpu.txt"];
-    const parts = await Promise.all(files.map(async f => { try { const r = await fetch(f + "?ts=" + Date.now(), { cache: "no-store" }); return r.ok ? await r.text() : ""; } catch (e) { return ""; } }));
-    const text = parts.join("\n");
+    const grab = async f => { try { const r = await fetch(f + "?ts=" + Date.now(), { cache: "no-store" }); return r.ok ? await r.text() : ""; } catch (e) { return ""; } };
+    const [stateRaw, txtRaw, gpuRaw] = await Promise.all([grab("data/progress.json"), grab("data/progress.txt"), grab("data/progress_gpu.txt")]);
+    let items = [];
+    try {
+      const state = JSON.parse(stateRaw || "{}");
+      items = Object.entries(state).map(([slot, v]) => ({
+        slot, label: v.label || slot, pct: v.total ? 100 * v.done / v.total : 0,
+        done: v.done, total: v.total, el: v.elapsed_min, eta: v.eta_min,
+        fin: v.finished, age: (Date.now() / 1000) - v.ts,
+      })).sort((a, b) => a.slot.localeCompare(b.slot));
+    } catch (e) {}
+    // jobs started before the per-slot change still write plain lines; merge them in by label
+    const parseBar = (l, tag) => {
+      const m = l.match(/^(.*?)\s*\[[█░]*\]\s*([\d.]+)%\s*·\s*([\d,]+)\/([\d,]+)\s*·\s*([\d.]+) min elapsed\s*·\s*([\d.nan]+) min left/);
+      if (!m) return null;
+      const num = s => +s.replace(/,/g, "");
+      return { slot: tag || m[1].trim(), label: m[1].trim() + (tag ? " (" + tag + ")" : ""), pct: +m[2], done: num(m[3]), total: num(m[4]), el: +m[5], eta: parseFloat(m[6]), fin: false, age: 0 };
+    };
+    const known = new Set(items.map(j => j.label));
+    for (const l of (txtRaw || "").split("\n").filter(l => l.includes("["))) {
+      const j = parseBar(l);
+      if (j && !known.has(j.label)) { j.fin = j.pct >= 100; items.push(j); known.add(j.label); }
+    }
+    // the rented GPU still reports through a plain text file copied back by remote/sync.sh
+    const gl = (gpuRaw || "").split("\n").filter(l => l.includes("["));
+    if (gl.length) {
+      const m = gl[0].match(/^(.*?)\s*\[[█░]*\]\s*([\d.]+)%\s*·\s*(\d+)\/(\d+)\s*·\s*([\d.]+) min elapsed\s*·\s*([\d.nan]+) min left/);
+      const j = parseBar(gl[0], "rented GPU");
+      if (j) { j.fin = /(^|\n)done/.test(gpuRaw); items.push(j); }
+    }
+    const text = stateRaw + gpuRaw;
     if (text !== lastText) { lastChange = Date.now(); lastText = text; }
-    // each file is one job: its bar line plus, when finished, its own "done" marker
-    const items = parts.map(p => { const ls = p.split("\n").filter(l => l.trim()); return { bar: ls.find(l => l.includes("[")), done: ls.some(l => /^done$|: done$/.test(l.trim())) }; }).filter(x => x.bar);
-    const done = items.length > 0 && items.every(x => x.done);
-    jobs.innerHTML = items.map(({ bar: l, done: fdone }) => {
-      const m = l.match(/^(.*?)\s*\[([█░]*)\]\s*([\d.]+)%\s*·\s*(\d+)\/(\d+)\s*·\s*([\d.]+) min elapsed\s*·\s*([\d.nan]+) min left/);
-      if (!m) return `<div class="job"><div class="name"><b>${l}</b></div></div>`;
-      const [, label, , pct, d, t, el, eta] = m;
-      const fin = fdone || +pct >= 100;
-      return `<div class="job ${fin ? "done" : ""}"><div class="name"><b>${label.trim()}</b><span>${fin ? "finished" : "running"}</span></div>
-        <div class="track"><div class="fill" style="width:${pct}%"></div></div>
-        <div class="meta"><span class="pct">${fin ? "100" : pct}%</span><span><b>${d}</b> of ${t}</span><span><b>${el}</b> min elapsed</span><span>${fin ? "" : `<b>${eta === "nan" ? "…" : eta}</b> min left`}</span></div></div>`;
-    }).join("") || `<div class="job"><div class="name"><b>no job running</b></div></div>`;
+    jobs.innerHTML = items.length ? items.map(j => {
+      const fin = j.fin || j.pct >= 100, stale = !fin && j.age > 120;
+      return `<div class="job ${fin ? "done" : ""}"><div class="name"><b>${j.label}</b><span>${fin ? "finished" : stale ? "no update for " + Math.round(j.age / 60) + " min" : "running"}</span></div>
+        <div class="track"><div class="fill" style="width:${Math.min(100, j.pct).toFixed(1)}%"></div></div>
+        <div class="meta"><span class="pct">${fin ? "100" : j.pct.toFixed(1)}%</span><span><b>${j.done.toLocaleString()}</b> of ${j.total.toLocaleString()}</span><span><b>${j.el.toFixed(1)}</b> min elapsed</span><span>${fin || j.eta == null || isNaN(j.eta) ? "" : `<b>${j.eta.toFixed(1)}</b> min left`}</span></div></div>`;
+    }).join("") : `<div class="job"><div class="name"><b>no job running</b></div></div>`;
     const age = Math.round((Date.now() - lastChange) / 1000);
-    foot.innerHTML = `last change ${age}s ago · ${new Date().toLocaleTimeString()}` + (age > 90 && !done ? ` · <span class="stale">no update for ${Math.round(age / 60)} min, the job may have stalled</span>` : "");
-  } catch (e) { foot.innerHTML = `<span class="stale">cannot read data/progress.txt: is the local server running? (python3 -m http.server 8931)</span>`; }
+    foot.innerHTML = `${items.length} job${items.length === 1 ? "" : "s"} · last change ${age}s ago · ${new Date().toLocaleTimeString()}`;
+  } catch (e) { foot.innerHTML = `<span class="stale">cannot read data/progress.json: is the local server running? (python3 -m http.server 8931)</span>`; }
 }
 tick(); setInterval(tick, 2000);
 </script>
