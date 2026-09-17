@@ -121,47 +121,43 @@ Done when: engine binary with a measured rating.
    the constraint.
 Done when: ablation map, decoding timeline, gains-vs-anatomy figure.
 
-### 6 — Embody it in MuJoCo (weeks 13–16)
-Goal: the fly lives in a physics simulation of a garden, on a chess set built to its own scale,
-and physically walks over and moves the pieces. Opponent: a human or a light Stockfish.
+### 6 — The demo: a fly playing chess in a garden (weeks 13–15)
+Goal: a garden scene with a chess set built at fly scale, where the fly walks over and moves the
+pieces. Opponent: a human or a light Stockfish.
 
-**Assets that already exist.** `flybody`, the anatomically detailed MuJoCo fruit fly from Google
-DeepMind and Janelia (Nature 2025, TuragaLab/flybody, also in mujoco_menagerie). Verified locally
-on 2026-09-17: 68 bodies, 108 degrees of freedom, 78 actuators, 85 meshes, and critically **8
-adhesion actuators** (six claws, one per leg, plus two on the labrum) that simulate how an insect
-foot grips. It ships with trained locomotion controllers that walk realistic trajectories from
-high-level steering commands, so walking does not have to be learned from scratch.
+**The boundary, decided 2026-09-17.** Exactly one thing is computed: the fly seeing the board and
+choosing a move. Board state is painted on the real retinotopic map of its right eye, runs 24
+ticks through 144,209 neurons and 21.27 M connections, and the move is read from the 1,314
+descending neurons. Everything after that is animation. Walking, gripping, carrying and returning
+are performed, not simulated. No motor learning, no physical control, no contact tuning.
 
-**Scale is a design decision, not a detail.** A fly cannot move a real chess piece; it would be a
-human shifting a battleship. So the chess set is built to the fly: a jewel-sized board of a few
-centimetres in model units, pieces of a few milligrams, sitting on a stone in the garden. This
-keeps the physics honest and is the single most striking thing about the image.
+**What this removes.** The whole motor RL problem, the 108-degree-of-freedom control problem, and
+the speed problem (flybody runs at 0.3x realtime only when its full articulated dynamics are
+simulated, which now they never are). Chess RL stays headless as before, and nothing about the
+demo constrains it.
 
-1. **The environment.** `FlyChessEnv`, one Gymnasium environment with a physics switch.
-   `physics=False` is headless: a step is a chess move, used for chess RL at full speed.
-   `physics=True` is MuJoCo: a step is the fly physically executing the move. Same board state,
-   same brain, same opponent interface, so nothing diverges between training and the demo.
-2. **Why chess RL stays headless.** Measured on this Mac: flybody runs at 0.3x realtime, and one
-   physically executed move takes 5-10 simulated seconds, so roughly 25 s of wall clock per move
-   and half an hour per game. Chess RL needs millions of games. Physics is for embodiment and
-   evaluation; the chess policy is trained in the headless mode of the same environment.
-3. **The motor layer, tier 1 (the deliverable).** The brain picks the move; a motor controller
-   executes it. Walk from the resting spot to the source square using flybody's steering
-   controller, grip with the adhesion actuators, carry the piece to its destination (a captured
-   piece is carried off the board first), release, walk back to exactly where it started.
-4. **The motor layer, tier 2 (the stretch, and the real prize).** The 1,314 descending neurons
-   drive the body directly, as they do in a real fly, instead of being read as a move. The move
-   then emerges from where the fly walks and what it grips. Scientifically much stronger; risky,
-   so it comes after tier 1 works.
-5. **The scene.** Garden: grass blades, a stone slab, dew, an HDRI sky, soft shadows. MuJoCo 3
-   renders physically based materials and cube-map skyboxes natively; a hero video can be
-   rendered offline at higher quality.
-6. **The opponent.** A human clicking a piece, or Stockfish at limited strength through the UCI
-   plumbing that already exists from Phase 4.
-7. **The brain in view.** A corner inset showing the Cloud Atlas lighting up as the fly decides,
-   tying the demo back to Phase 1.
+1. **The asset.** `flybody` (Google DeepMind and Janelia, Nature 2025) used as a model, not as an
+   agent: anatomically correct mesh, veined wings, compound eyes, jointed tarsi, built from real
+   fly measurements by the institute that produced the connectome. Positioned directly each frame.
+2. **The walk cycle.** Recorded once from flybody's own trained locomotion controller, then looped
+   and steered along the path, so the gait is a real fly's tripod gait rather than something
+   hand-drawn.
+3. **The set, built for the fly.** A jewel-sized board a few centimetres across with pieces of a
+   few milligrams, on a stone in the grass. A real-scale fly on a chess set made for it.
+4. **The performance of a move.** From the resting spot to the source square, grip, carry to the
+   destination, release, walk home to exactly where it started. A captured piece is carried off
+   the board first.
+5. **The thinking pause is the feature.** A move costs a second or two of real computation. Fill
+   it with the Cloud Atlas inset lighting up as activity crosses the brain, so the one honest
+   moment in the demo is also the most interesting thing on screen.
+6. **The opponent.** A person clicking a piece, or Stockfish at limited strength through the
+   engine built in Phase 4.
 Done when: a stranger can play the fly in a garden and watch it walk over and move the pieces.
-Prior art worth reading: Lulzx/fly-brain (connectome brain + flybody + flyvis, in the browser).
+
+**Open fork.** With no physics left, the choice of MuJoCo versus the browser is now about who
+watches it. MuJoCo uses the flybody meshes natively and renders a better hero video; a browser
+build is a link anyone can open and reuses the Cloud Atlas viewer for the brain inset. The
+flybody meshes export to glTF, so the asset survives either choice.
 
 ## Compute and tools
 
