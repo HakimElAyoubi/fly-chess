@@ -19,7 +19,7 @@ The full plan is in [PLAN.md](PLAN.md) (six phases). Status:
 | 3 | Teach it the rules | in progress: 79.3% legal, 24.0% top-1 after 6.2 M positions |
 | 4 | Make it play | in progress: UCI engine built, rating matches running |
 | 5 | Look inside | |
-| 6 | Embody it in MuJoCo: a fly-scale chess set in a garden, the fly physically moves the pieces | |
+| 6 | The demo: a fly-scale chess set in a garden, the fly walks over and moves the pieces | |
 
 ## What is here
 

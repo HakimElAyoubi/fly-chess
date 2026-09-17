@@ -134,7 +134,7 @@
       <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">24.0% top-1</span></span></a></li>
       <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">in progress</span></span></a></li>
       <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
-      <li><a href="#p6"><span class="n">6</span><span>Embody it in MuJoCo<span class="w">weeks 13–16</span></span></a></li>
+      <li><a href="#p6"><span class="n">6</span><span>A fly in a garden<span class="w">weeks 13–15</span></span></a></li>
     </ol>
     <div class="aux">
       <ol>
@@ -403,21 +403,20 @@
     </section>
 
     <section class="phase" id="p6">
-      <div class="ph"><span class="num">6</span><h2>Embody it in MuJoCo</h2><span class="when">weeks 13–16</span></div>
-      <p class="goal">The fly lives in a physics simulation of a garden, on a chess set built to its own scale, and physically walks over and moves the pieces.</p>
+      <div class="ph"><span class="num">6</span><h2>A fly playing chess in a garden</h2><span class="when">weeks 13–15</span></div>
+      <p class="goal">A garden scene with a chess set built at fly scale, where the fly walks over and moves the pieces itself.</p>
       <div class="callout">
-        <p><b>The body already exists.</b> <code>flybody</code> is an anatomically detailed MuJoCo fruit fly from Google DeepMind and Janelia, published in <i>Nature</i> in 2025. Loaded and measured here on 17 September 2026: 68 bodies, 108 degrees of freedom, 78 actuators, 85 meshes, and eight adhesion actuators that simulate how an insect foot grips, one per claw plus two on the mouthparts. It ships with trained walking controllers that follow high-level steering commands, so the fly does not have to learn to walk from scratch.</p>
+        <p><b>Exactly one thing is computed.</b> The fly seeing the board and choosing a move: the position is painted on the real map of its right eye, activity runs for 24 ticks through 144,209 neurons and 21.27 million connections, and the move is read from the 1,314 descending neurons. Everything after that is animation. Walking, gripping, carrying and returning are performed, not simulated. That removes the motor learning problem, the 108-degree-of-freedom control problem, and the speed problem in one stroke.</p>
       </div>
       <ol class="steps">
-        <li><span><b>Build the set to the fly, not the fly to the set.</b> A fly cannot move a real chess piece; that would be a person shifting a battleship. The board is built at the fly's own scale, a jewel-sized square of a few centimetres with pieces of a few milligrams, resting on a stone. The physics stays honest and the image is the striking part: a real-scale fly on a chess set made for it.</span></li>
-        <li><span><b>One environment, two modes.</b> <code>FlyChessEnv</code> has a physics switch. Headless, a step is a chess move, and the chess policy trains at full speed. In MuJoCo, a step is the fly physically executing that move. Same board, same brain, same opponent, so training and the demo never drift apart.</span></li>
-        <li><span><b>Keep the chess learning out of the physics.</b> Measured here: the fly body runs at 0.3× realtime, so one physically executed move costs about 25 seconds of wall clock and a whole game takes half an hour. Reinforcement learning on chess needs millions of games, so it runs headless. Physics is for embodiment and for evaluation.</span></li>
-        <li><span><b>The move, performed.</b> The fly walks from its resting spot to the piece, grips it with the adhesion actuators, carries it to its destination, and walks back to exactly where it started. A captured piece is carried off the board first.</span></li>
-        <li><span><b>The stretch, and the real prize.</b> Let the 1,314 descending neurons drive the body directly, the way they do in a living fly, instead of being read out as a move. The move then emerges from where the fly walks and what it picks up. Much stronger scientifically, so it follows once the simpler version works.</span></li>
-        <li><span><b>The garden.</b> Grass, a stone slab, dew, a sky, soft shadows. MuJoCo renders physically based materials and sky boxes natively, and a hero video can be rendered offline at higher quality. A corner inset shows the Cloud Atlas lighting up as the fly decides, tying the demo back to Phase 1.</span></li>
-        <li><span><b>The opponent.</b> A person clicking a piece, or Stockfish at limited strength through the engine plumbing built in Phase 4.</span></li>
+        <li><span><b>The fly is a model, not an agent.</b> <code>flybody</code> from Google DeepMind and Janelia gives an anatomically correct fly, built from real measurements by the same institute that produced the connectome: veined wings, compound eyes, jointed tarsi. It is positioned directly each frame rather than physically controlled, so it cannot fall over and costs almost nothing to run.</span></li>
+        <li><span><b>The walk is a real fly's walk.</b> One gait cycle recorded from flybody's own trained locomotion controller, then looped and steered along the path, rather than a hand-drawn approximation.</span></li>
+        <li><span><b>The set is built for the fly.</b> A jewel-sized board a few centimetres across with pieces of a few milligrams, resting on a stone in the grass. A real-scale fly on a chess set made for it, with grass blades towering over the game.</span></li>
+        <li><span><b>The move, performed.</b> From its resting spot to the piece, grip, carry to the destination square, release, and walk back to exactly where it started. A captured piece is carried off the board first.</span></li>
+        <li><span><b>The thinking pause is the feature.</b> A move costs a second or two of real computation. That pause is filled with the Cloud Atlas lighting up as activity crosses the brain, so the one honest moment in the demo is also the most interesting thing on screen.</span></li>
+        <li><span><b>The opponent.</b> A person clicking a piece, or Stockfish at limited strength through the engine built in Phase 4.</span></li>
       </ol>
-      <div class="done"><b>Done when</b><span>A stranger can play the fly in a garden and watch it walk over and move the pieces itself.</span></div>
+      <div class="done"><b>Done when</b><span>A stranger can play the fly in a garden and watch it walk over and move the pieces.</span></div>
     </section>
 
     <section class="sec" id="compute">
