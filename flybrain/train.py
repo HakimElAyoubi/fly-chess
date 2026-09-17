@@ -20,7 +20,7 @@ import torch
 import chess
 from .graph import load, DATA
 from .eye import Eye
-from .policy import FlyPolicy, move_index, legal_mask, N_MOVES
+from .policy import FlyPolicy, move_index, legal_mask, load_into, variant_of, N_MOVES
 from .progress import write as progress
 
 
@@ -98,6 +98,7 @@ def main():
                     help="value target: how the game ended, or the engine's evaluation of this position")
     ap.add_argument("--value-margin", type=int, default=100, help="centipawns outside which a position counts as won or lost")
     ap.add_argument("--init-weights", default=None, help="start from these model weights with a fresh optimizer (fine-tuning)")
+    ap.add_argument("--eval-only", action="store_true", help="evaluate the loaded weights on held-out positions and exit")
     a = ap.parse_args()
     rank, world = 0, 1
     if a.ddp:
@@ -108,6 +109,11 @@ def main():
     main_rank = rank == 0
     out = DATA / f"train_{a.tag}"; out.mkdir(exist_ok=True)
     torch.manual_seed(0)
+    if a.init_weights or a.resume:                    # the checkpoint decides the variant, not the flag
+        edge, _ = variant_of(a.init_weights or a.resume, a.device)
+        if edge != a.edge_gains and main_rank:
+            print(f"checkpoint has {'per-edge' if edge else 'per-neuron'} gains; building that variant", flush=True)
+        a.edge_gains = edge
     model = FlyPolicy(device=a.device, ticks=a.ticks, edge_gains=a.edge_gains)
     net = model
     W, meta = load(); eye = Eye(W, meta)
@@ -132,10 +138,17 @@ def main():
     step0 = 0
     if a.init_weights:
         ck = torch.load(a.init_weights, map_location=a.device, weights_only=False)
-        missing = model.load_state_dict(ck["model"], strict=False)
         if main_rank: print(f"initialised from {a.init_weights} (step {ck.get('step')}); fresh optimizer", flush=True)
+        load_into(model, ck["model"], a.init_weights, strict_report=main_rank)
     if a.resume:
-        ck = torch.load(a.resume, map_location=a.device); model.load_state_dict(ck["model"], strict=False); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
+        ck = torch.load(a.resume, map_location=a.device, weights_only=False)
+        load_into(model, ck["model"], a.resume, strict_report=main_rank); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
+    if a.eval_only:
+        ev = evaluate(model, batcher, held, a.batch)
+        ev.update({"step": step0, "weights": a.init_weights or a.resume, "label_field": a.label_field, "value_from": a.value_from})
+        print(json.dumps(ev, indent=1), flush=True)
+        json.dump(ev, open(out / f"eval_{a.label_field}.json", "w"), indent=1)
+        return
     log = open(out / "log.jsonl", "a") if main_rank else None
     rng = np.random.default_rng(step0 * 1000 + rank)
     t0 = time.time(); run_loss = None
