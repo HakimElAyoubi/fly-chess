@@ -1,0 +1,4 @@
+#!/bin/bash
+# UCI entry point for chess GUIs: point the GUI at this file.
+cd "$(dirname "$0")"
+exec .venv/bin/python -m flybrain.uci "$@"

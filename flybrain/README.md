@@ -1,4 +1,4 @@
-# flybrain — the digital fly (Phases 1–3)
+# flybrain — the digital fly (Phases 1–4)
 
 A connectome-constrained rate model of the male fruit fly brain, built from MaleCNS v1.0.
 
@@ -15,6 +15,8 @@ A connectome-constrained rate model of the male fruit fly brain, built from Male
 | `policy.py` | Phase 3 model: the fly as a chess policy (eye → network with learned gains → descending-neuron readout) |
 | `train.py` | Phase 3 training loop: imitation of human moves, legality / top-1 / top-3 metrics, checkpoints, progress bar |
 | `progress.py` | progress bar for long jobs → `data/progress.txt` (live page: `progress.html`) |
+| `uci.py` | Phase 4: the fly as a UCI chess engine (`./fly-uci` for GUIs); batched move choice with legal masking and an anti-repetition rule |
+| `play.py` | Phase 4 matches against a random mover or Stockfish at limited strength; Elo with a 95% interval → `data/match_<tag>.json/.pgn` |
 
 Run order (from the project root, with `.venv` active):
 
@@ -210,3 +212,25 @@ Chance levels: 0.7% legal, about 3% top-1, 9% top-3, 33% value. Curves: `data/ph
 The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. The trained weights survived a close call: the checkpoint file came back as two writes spliced together, because the end-of-budget kill landed while it was being rewritten, and both copies were unreadable by PyTorch; the newest write's model tensors were complete and were recovered by walking the archive by hand (tools_recover_checkpoint.py). The weights at step 11,600 are attached to the GitHub release phase3-run2-step11600 (108 MB, or 54 MB in half precision); 40.6% of synapses changed their gain by more than 10%. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run resumed from these weights, then the modulatory-gate fallback if legality stays capped.
 
 <!-- PHASE3_RESULTS:end -->
+
+## Phase 4: making it play
+
+**The engine.** `flybrain/uci.py` speaks UCI on stdin/stdout (`./fly-uci` launches it), so any
+chess GUI or match runner can play the fly. One forward pass per move: the board is painted on
+the eye, the network runs 24 ticks, the move head is masked to legal moves and the promotion
+head picks the piece on the last rank. About 3.7 s per move on the Mac's CPU, milliseconds on a
+GPU. Weights: the recovered step-11,600 model of the second Phase 3 run.
+
+**Two rules a search-free policy needs.** (1) Legal-move masking: the fly's eye does not see
+castling rights or en passant, so legality comes from the mask. (2) Anti-repetition: a policy
+without search happily shuffles a piece back and forth; a 4-game pilot against a random mover
+ended in three threefold repetitions from winning positions. The engine now refuses any move
+that recreates a position already seen, unless every legal move does.
+
+**Rating.** `flybrain/play.py` plays 200-game matches, many games at once so the fly's moves
+are batched through the network. Each game opens with four random plies for variety and
+colours alternate. Opponents: a uniformly random mover, and Stockfish 19 with
+`UCI_LimitStrength` at its floor of 1320 (50 ms per move). Elo difference from the match score
+with a 95% interval from the per-game outcomes; the Stockfish match anchors an absolute rating.
+
+<!-- PHASE4_RESULTS -->

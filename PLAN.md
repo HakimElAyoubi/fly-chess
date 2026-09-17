@@ -103,7 +103,10 @@ The second run confirms the trend and pushes every number up: the loss is still 
 5. Run the three controls with identical budgets.
 Done when: > 99% legal, top-1 ≥ 35%, controls table filled.
 
-### 4 — Make it play (weeks 7–10)
+### 4 — Make it play (weeks 7–10) — IN PROGRESS (engine built 2026-09-17)
+flybrain/uci.py (UCI engine, ./fly-uci), flybrain/play.py (batched matches vs random / Stockfish 1320,
+Elo with 95% CI). Anti-repetition rule added after a pilot drew won games by repetition.
+<!-- PHASE4_RESULTS -->
 1. UCI engine wrapper (python-chess), one forward pass per move (~10 ms GPU, ~1 s Mac CPU).
 2. RL vs Stockfish UCI_LimitStrength 1350 → 1600 → 1800: REINFORCE with value baseline or
    DAgger; keep imitation loss mixed in.
