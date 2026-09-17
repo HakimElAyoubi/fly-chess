@@ -121,16 +121,47 @@ Done when: engine binary with a measured rating.
    the constraint.
 Done when: ablation map, decoding timeline, gains-vs-anatomy figure.
 
-### 6 — Ship the demo (weeks 13–14)
-1. Page: a chessboard with a 3D model of the fly. On each move the fly walks from its resting
-   spot beside the board to the piece, carries it to its destination square (a captured piece
-   is carried off the board first), and walks back to exactly where it started. The Cloud
-   Atlas beside the board shows the brain activity that produced the move; a sidebar lists
-   the candidate moves and the most active regions. Rigged low-poly fly (glTF, walk cycle) in
-   three.js; the walk path is generated from the engine's chosen move.
-2. Inference ~1.3 GFLOP/move: small backend or WebGPU.
-3. Write-up: rules, controls table, rating, ablation map.
-Done when: a stranger can play the fly online and see its brain light up.
+### 6 — Embody it in MuJoCo (weeks 13–16)
+Goal: the fly lives in a physics simulation of a garden, on a chess set built to its own scale,
+and physically walks over and moves the pieces. Opponent: a human or a light Stockfish.
+
+**Assets that already exist.** `flybody`, the anatomically detailed MuJoCo fruit fly from Google
+DeepMind and Janelia (Nature 2025, TuragaLab/flybody, also in mujoco_menagerie). Verified locally
+on 2026-09-17: 68 bodies, 108 degrees of freedom, 78 actuators, 85 meshes, and critically **8
+adhesion actuators** (six claws, one per leg, plus two on the labrum) that simulate how an insect
+foot grips. It ships with trained locomotion controllers that walk realistic trajectories from
+high-level steering commands, so walking does not have to be learned from scratch.
+
+**Scale is a design decision, not a detail.** A fly cannot move a real chess piece; it would be a
+human shifting a battleship. So the chess set is built to the fly: a jewel-sized board of a few
+centimetres in model units, pieces of a few milligrams, sitting on a stone in the garden. This
+keeps the physics honest and is the single most striking thing about the image.
+
+1. **The environment.** `FlyChessEnv`, one Gymnasium environment with a physics switch.
+   `physics=False` is headless: a step is a chess move, used for chess RL at full speed.
+   `physics=True` is MuJoCo: a step is the fly physically executing the move. Same board state,
+   same brain, same opponent interface, so nothing diverges between training and the demo.
+2. **Why chess RL stays headless.** Measured on this Mac: flybody runs at 0.3x realtime, and one
+   physically executed move takes 5-10 simulated seconds, so roughly 25 s of wall clock per move
+   and half an hour per game. Chess RL needs millions of games. Physics is for embodiment and
+   evaluation; the chess policy is trained in the headless mode of the same environment.
+3. **The motor layer, tier 1 (the deliverable).** The brain picks the move; a motor controller
+   executes it. Walk from the resting spot to the source square using flybody's steering
+   controller, grip with the adhesion actuators, carry the piece to its destination (a captured
+   piece is carried off the board first), release, walk back to exactly where it started.
+4. **The motor layer, tier 2 (the stretch, and the real prize).** The 1,314 descending neurons
+   drive the body directly, as they do in a real fly, instead of being read as a move. The move
+   then emerges from where the fly walks and what it grips. Scientifically much stronger; risky,
+   so it comes after tier 1 works.
+5. **The scene.** Garden: grass blades, a stone slab, dew, an HDRI sky, soft shadows. MuJoCo 3
+   renders physically based materials and cube-map skyboxes natively; a hero video can be
+   rendered offline at higher quality.
+6. **The opponent.** A human clicking a piece, or Stockfish at limited strength through the UCI
+   plumbing that already exists from Phase 4.
+7. **The brain in view.** A corner inset showing the Cloud Atlas lighting up as the fly decides,
+   tying the demo back to Phase 1.
+Done when: a stranger can play the fly in a garden and watch it walk over and move the pieces.
+Prior art worth reading: Lulzx/fly-brain (connectome brain + flybody + flyvis, in the browser).
 
 ## Compute and tools
 

@@ -34,7 +34,7 @@ def run(a):
     sf = None
     if a.opponent == "stockfish":
         sf = chess.engine.SimpleEngine.popen_uci(a.stockfish)
-        sf.configure({"UCI_LimitStrength": True, "UCI_Elo": a.elo, "Threads": 1})
+        sf.configure({"UCI_LimitStrength": True, "UCI_Elo": a.elo, "Threads": 1} if not a.sf_depth else {"Threads": 1})
     games = []
     t0 = time.time(); done = 0
     results = []            # (fly_result: 1 win / 0.5 draw / 0 loss, termination, plies, fly_color)
@@ -60,7 +60,7 @@ def run(a):
                     if sf is None:
                         moves = list(b.legal_moves); b.push(moves[int(rng.integers(len(moves)))])
                     else:
-                        b.push(sf.play(b, chess.engine.Limit(time=a.sf_time)).move)
+                        b.push(sf.play(b, chess.engine.Limit(depth=a.sf_depth) if a.sf_depth else chess.engine.Limit(time=a.sf_time)).move)
             still = []
             for x in active:
                 b = x["board"]
@@ -89,12 +89,12 @@ def run(a):
     score = float(r.mean()); se = float(r.std(ddof=1) / math.sqrt(n)) if n > 1 else 0.0
     lo, hi = max(0.0, score - 1.96 * se), min(1.0, score + 1.96 * se)
     summary = {
-        "opponent": a.opponent + (f" (UCI_Elo {a.elo})" if sf else ""), "games": n, "fly_temperature": a.temperature, "avoid_repetition": not a.allow_repetition,
+        "opponent": a.opponent + ((f" (depth {a.sf_depth})" if a.sf_depth else f" (UCI_Elo {a.elo})") if sf else ""), "games": n, "fly_temperature": a.temperature, "avoid_repetition": not a.allow_repetition,
         "wins": int((r == 1).sum()), "draws": int((r == 0.5).sum()), "losses": int((r == 0).sum()),
         "score": score, "score_95ci": [lo, hi],
         "elo_diff": elo_from_score(score), "elo_diff_95ci": [elo_from_score(lo), elo_from_score(hi)],
-        "fly_elo_estimate": (a.elo + elo_from_score(score)) if sf else None,
-        "fly_elo_95ci": [a.elo + elo_from_score(lo), a.elo + elo_from_score(hi)] if sf else None,
+        "fly_elo_estimate": (a.elo + elo_from_score(score)) if (sf and not a.sf_depth) else None,
+        "fly_elo_95ci": [a.elo + elo_from_score(lo), a.elo + elo_from_score(hi)] if (sf and not a.sf_depth) else None,
         "mean_plies": float(np.mean([x[2] for x in results])),
         "terminations": {t: int(sum(1 for x in results if x[1] == t)) for t in sorted(set(x[1] for x in results))},
         "score_as_white": float(np.mean([x[0] for x in results if x[3] == "white"])), "score_as_black": float(np.mean([x[0] for x in results if x[3] == "black"])),
@@ -108,11 +108,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--opponent", choices=["random", "stockfish"], default="random")
     ap.add_argument("--games", type=int, default=200); ap.add_argument("--concurrency", type=int, default=32)
-    ap.add_argument("--elo", type=int, default=1320); ap.add_argument("--sf-time", type=float, default=0.05)
+    ap.add_argument("--elo", type=int, default=1320); ap.add_argument("--sf-time", type=float, default=0.05); ap.add_argument("--sf-depth", type=int, default=0)
     ap.add_argument("--stockfish", default="stockfish"); ap.add_argument("--weights", default=str(DATA / "train_gpu" / "model_step11600.pt"))
     ap.add_argument("--temperature", type=float, default=0.0); ap.add_argument("--opening-plies", type=int, default=4)
     ap.add_argument("--max-plies", type=int, default=300); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default=None); ap.add_argument("--allow-repetition", action="store_true")
     a = ap.parse_args()
-    a.tag = a.tag or (a.opponent if a.opponent == "random" else f"stockfish{a.elo}")
+    a.tag = a.tag or (a.opponent if a.opponent == "random" else f"stockfish_depth{a.sf_depth}" if a.sf_depth else f"stockfish{a.elo}")
     run(a)
