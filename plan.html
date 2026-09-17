@@ -132,7 +132,7 @@
       <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
       <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">done</span></span></a></li>
       <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">24.0% top-1</span></span></a></li>
-      <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
+      <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">in progress</span></span></a></li>
       <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
       <li><a href="#p6"><span class="n">6</span><span>Ship the demo<span class="w">weeks 13–14</span></span></a></li>
     </ol>
@@ -377,8 +377,12 @@
     </section>
 
     <section class="phase" id="p4">
-      <div class="ph"><span class="num">4</span><h2>Make it play</h2><span class="when">weeks 7–10</span></div>
+      <div class="ph"><span class="num">4</span><h2>Make it play</h2><span class="when">in progress · engine built 17 Sep 2026</span></div>
       <p class="goal">A rated chess engine whose entire policy is the fly's brain.</p>
+      <div class="callout">
+        <!-- PHASE4_RESULTS -->
+        <p><b>Status.</b> The fly is a UCI engine now (one forward pass per move, legal-move mask, promotion head, anti-repetition rule) and 200-game matches against a random mover and Stockfish at its 1320 floor are running on the Mac with the recovered step-11,600 weights.</p>
+      </div>
       <ol class="steps">
         <li><span><b>Wrap it as a UCI engine</b> so any chess program can run it: a python-chess UCI loop, one forward pass per move, about 10 ms on a GPU or around a second on your Mac's CPU.</span></li>
         <li><span><b>Fine-tune by playing.</b> Reinforcement learning against Stockfish with its strength limited, climbing from Elo 1350 to 1600 to 1800: REINFORCE with the value head as baseline, or DAgger using Stockfish's move as the correction. Keep imitation loss mixed in so it does not forget legality.</span></li>

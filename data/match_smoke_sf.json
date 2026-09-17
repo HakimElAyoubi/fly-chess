@@ -1,0 +1,30 @@
+{
+ "opponent": "stockfish (UCI_Elo 1320)",
+ "games": 4,
+ "fly_temperature": 0.0,
+ "wins": 0,
+ "draws": 0,
+ "losses": 4,
+ "score": 0.0,
+ "score_95ci": [
+  0.0,
+  0.0
+ ],
+ "elo_diff": -1599.9826273520769,
+ "elo_diff_95ci": [
+  -1599.9826273520769,
+  -1599.9826273520769
+ ],
+ "fly_elo_estimate": -279.98262735207686,
+ "fly_elo_95ci": [
+  -279.98262735207686,
+  -279.98262735207686
+ ],
+ "mean_plies": 65.0,
+ "terminations": {
+  "checkmate": 4
+ },
+ "score_as_white": 0.0,
+ "score_as_black": 0.0,
+ "minutes": 3.3601202289263408
+}
