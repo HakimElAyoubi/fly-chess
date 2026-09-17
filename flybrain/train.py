@@ -36,17 +36,30 @@ def load_positions(path, n_eval=512, seed=0):
 
 
 class Batcher:
-    def __init__(self, eye, N, device):
+    def __init__(self, eye, N, device, label_field="move", value_from="result", value_margin=100):
         self.eye, self.N, self.device = eye, N, device
         self.pr = np.array(sorted(eye.pr_col))
+        self.label_field, self.value_from, self.value_margin = label_field, value_from, value_margin
 
     def make(self, recs):
         boards = [chess.Board(r["fen"]) for r in recs]
         I = np.stack([self.eye.encode(b) for b in boards], 1)                    # [N, B]
-        mv = [chess.Move.from_uci(r["move"]) for r in recs]
+        mv = [chess.Move.from_uci(r[self.label_field]) for r in recs]
         idx = torch.tensor([move_index(m)[0] for m in mv]); promo = torch.tensor([move_index(m)[1] for m in mv])
-        val = torch.tensor([r["result"] + 1 for r in recs])                       # 0 black wins, 1 draw, 2 white wins
+        val = torch.tensor([self.value_target(r, b) for r, b in zip(recs, boards)])
         return boards, torch.from_numpy(I).to(self.device), idx.to(self.device), promo.to(self.device), val.to(self.device)
+
+    def value_target(self, r, board):
+        """0 black better, 1 balanced, 2 white better. From the game result, or from the engine's
+        evaluation of the position, which does not punish a won position that was later thrown away."""
+        if self.value_from == "eval" and ("sf_cp" in r or "sf_mate" in r):
+            white_pov = 1 if board.turn == chess.WHITE else -1
+            if r.get("sf_mate") is not None:
+                return 2 if r["sf_mate"] * white_pov > 0 else 0
+            if r.get("sf_cp") is not None:
+                cp = r["sf_cp"] * white_pov
+                return 2 if cp > self.value_margin else 0 if cp < -self.value_margin else 1
+        return r["result"] + 1
 
 
 @torch.no_grad()
@@ -79,6 +92,12 @@ def main():
     ap.add_argument("--tag", default="pilot"); ap.add_argument("--device", default="cpu")
     ap.add_argument("--edge-gains", action="store_true"); ap.add_argument("--resume", default=None)
     ap.add_argument("--n-eval", type=int, default=512); ap.add_argument("--ddp", action="store_true")
+    ap.add_argument("--label-field", choices=["move", "sf_move"], default="move",
+                    help="imitate the human move, or Stockfish's choice at the labelling depth")
+    ap.add_argument("--value-from", choices=["result", "eval"], default="result",
+                    help="value target: how the game ended, or the engine's evaluation of this position")
+    ap.add_argument("--value-margin", type=int, default=100, help="centipawns outside which a position counts as won or lost")
+    ap.add_argument("--init-weights", default=None, help="start from these model weights with a fresh optimizer (fine-tuning)")
     a = ap.parse_args()
     rank, world = 0, 1
     if a.ddp:
@@ -92,10 +111,10 @@ def main():
     model = FlyPolicy(device=a.device, ticks=a.ticks, edge_gains=a.edge_gains)
     net = model
     W, meta = load(); eye = Eye(W, meta)
-    batcher = Batcher(eye, model.N, model.device)
+    batcher = Batcher(eye, model.N, model.device, a.label_field, a.value_from, a.value_margin)
     train, held = load_positions(a.positions, n_eval=a.n_eval)
     if main_rank: print(f"positions: {len(train)} train, {len(held)} held out | params: {sum(p.numel() for p in model.parameters()):,} | world {world}", flush=True)
-    if not a.resume:
+    if not a.resume and not a.init_weights:
         boards_c, I_c, *_ = batcher.make([train[i] for i in np.random.default_rng(1).integers(len(train), size=32)])
         model.calibrate(I_c)
         if main_rank: print(f"calibrated the descending-neuron standardisation on 32 positions (scale median {float(model.dn_scale.median()):.3g})", flush=True)
@@ -111,6 +130,10 @@ def main():
               {"params": biases, "lr": a.lr_bias, "weight_decay": 0.0}]
     opt = torch.optim.AdamW(groups)
     step0 = 0
+    if a.init_weights:
+        ck = torch.load(a.init_weights, map_location=a.device, weights_only=False)
+        missing = model.load_state_dict(ck["model"], strict=False)
+        if main_rank: print(f"initialised from {a.init_weights} (step {ck.get('step')}); fresh optimizer", flush=True)
     if a.resume:
         ck = torch.load(a.resume, map_location=a.device); model.load_state_dict(ck["model"], strict=False); opt.load_state_dict(ck["opt"]); step0 = ck["step"]
     log = open(out / "log.jsonl", "a") if main_rank else None
