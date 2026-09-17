@@ -145,6 +145,26 @@ class FlyPolicy(nn.Module):
         return {n: int(p.numel()) for n, p in self.named_parameters()}
 
 
+def load_into(model, state, where="", strict_report=True):
+    """Load weights and report what did not match, so a mismatched variant cannot pass silently."""
+    result = model.load_state_dict(state, strict=False)
+    missing = [k for k in result.missing_keys if not k.startswith("dn")]
+    if strict_report and (missing or result.unexpected_keys):
+        print(f"  weights {where}: {len(state)} tensors loaded"
+              + (f" | MISSING {missing}" if missing else "")
+              + (f" | IGNORED {list(result.unexpected_keys)}" if result.unexpected_keys else ""), flush=True)
+    if "log_edge_gain" in state and not model.edge_gains:
+        raise ValueError("these weights have per-edge gains but the model was built without them; "
+                         "build FlyPolicy(edge_gains=True)")
+    return result
+
+
+def variant_of(path, device="cpu"):
+    """True when a checkpoint holds per-edge gains."""
+    ck = torch.load(path, map_location=device, weights_only=False)
+    return "log_edge_gain" in ck["model"], ck
+
+
 def legal_mask(boards, device="cpu"):
     m = torch.full((len(boards), N_MOVES), float("-inf"), device=device)
     for i, b in enumerate(boards):

@@ -15,7 +15,7 @@ import torch
 import chess
 from .graph import load, DATA
 from .eye import Eye
-from .policy import FlyPolicy, legal_mask, N_MOVES, PROMO_INV
+from .policy import FlyPolicy, legal_mask, load_into, variant_of, N_MOVES, PROMO_INV
 
 NAME = "Fly Chess (MaleCNS digital fly)"
 
@@ -23,9 +23,9 @@ NAME = "Fly Chess (MaleCNS digital fly)"
 class FlyEngine:
     def __init__(self, weights, temperature=0.0, device="cpu", avoid_repetition=True):
         torch.set_grad_enabled(False)
-        self.model = FlyPolicy(device=device, ticks=24, edge_gains=True)
-        ck = torch.load(weights, map_location=device, weights_only=False)
-        self.model.load_state_dict(ck["model"], strict=False)
+        edge, ck = variant_of(weights, device)
+        self.model = FlyPolicy(device=device, ticks=24, edge_gains=edge)
+        load_into(self.model, ck["model"], weights, strict_report=False)
         self.model.eval()
         self.step = ck.get("step")
         W, meta = load(); self.eye = Eye(W, meta)

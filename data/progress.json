@@ -1,0 +1,24 @@
+{
+ "lichess": {
+  "label": "lichess: streaming games",
+  "done": 24600,
+  "total": 80000,
+  "elapsed_min": 3.4689060846964517,
+  "eta_min": 7.812089312690383,
+  "pid": 58080,
+  "ts": 1789666231.876549,
+  "finished": false,
+  "line": "lichess: streaming games [\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591]  30.8% \u00b7 24600/80000 \u00b7 3.5 min elapsed \u00b7 7.8 min left"
+ },
+ "match": {
+  "label": "match vs greedy",
+  "done": 0,
+  "total": 200,
+  "elapsed_min": 1.5527835647265116,
+  "eta_min": null,
+  "pid": 58165,
+  "ts": 1789666228.01328,
+  "finished": false,
+  "line": "match vs greedy          [\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591]   0.0% \u00b7 0/200 \u00b7 1.6 min elapsed \u00b7 nan min left"
+ }
+}

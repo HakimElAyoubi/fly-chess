@@ -1,0 +1,30 @@
+{
+ "opponent": "stockfish (depth 1)",
+ "games": 200,
+ "fly_temperature": 0.0,
+ "avoid_repetition": true,
+ "wins": 0,
+ "draws": 15,
+ "losses": 185,
+ "score": 0.0375,
+ "score_95ci": [
+  0.019202109026711527,
+  0.055797890973288466
+ ],
+ "elo_diff": -563.7477881811278,
+ "elo_diff_95ci": [
+  -683.2922368328153,
+  -491.3788728826608
+ ],
+ "fly_elo_estimate": null,
+ "fly_elo_95ci": null,
+ "mean_plies": 67.85,
+ "terminations": {
+  "checkmate": 185,
+  "repetition": 14,
+  "stalemate": 1
+ },
+ "score_as_white": 0.045,
+ "score_as_black": 0.03,
+ "minutes": 421.61028326352437
+}
