@@ -1,4 +1,4 @@
-"""Phase 4 matches: the fly against a random mover or against Stockfish at limited strength,
+"""Phase 4 matches: the fly against a random mover, a greedy capture bot, or Stockfish,
 many games at once so the fly's moves are batched through the network.
 
     python -m flybrain.play --opponent random --games 200
@@ -21,6 +21,26 @@ import chess.pgn
 from .graph import DATA
 from .uci import FlyEngine
 from .progress import write as progress
+
+
+PIECE_VALUE = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
+
+
+def greedy_move(board, rng):
+    """Mate in one if there is one, else the most valuable capture, else a random legal move."""
+    best, best_val = [], -1
+    for m in board.legal_moves:
+        board.push(m); mate = board.is_checkmate(); board.pop()
+        if mate:
+            return m
+        v = 0
+        if board.is_capture(m):
+            v = 1 if board.is_en_passant(m) else PIECE_VALUE[board.piece_at(m.to_square).piece_type]
+        if v > best_val:
+            best, best_val = [m], v
+        elif v == best_val:
+            best.append(m)
+    return best[int(rng.integers(len(best)))]
 
 
 def elo_from_score(s):
@@ -57,7 +77,9 @@ def run(a):
             for x in active:
                 b = x["board"]
                 if b.turn != x["fly_color"] and not b.is_game_over(claim_draw=True) and len(b.move_stack) < a.max_plies:
-                    if sf is None:
+                    if a.opponent == "greedy":
+                        b.push(greedy_move(b, rng))
+                    elif sf is None:
                         moves = list(b.legal_moves); b.push(moves[int(rng.integers(len(moves)))])
                     else:
                         b.push(sf.play(b, chess.engine.Limit(depth=a.sf_depth) if a.sf_depth else chess.engine.Limit(time=a.sf_time)).move)
@@ -82,7 +104,7 @@ def run(a):
                 print(game, file=pgn_out, end="\n\n"); pgn_out.flush()
                 done += 1
             active = still
-            progress(done, a.games, t0, f"match vs {a.opponent}{' ' + str(a.elo) if sf else ''}")
+            progress(done, a.games, t0, f"match vs {a.opponent}" + (f" depth {a.sf_depth}" if (sf and a.sf_depth) else f" {a.elo}" if sf else ""))
     pgn_out.close()
     if sf: sf.quit()
     r = np.array([x[0] for x in results]); n = len(r)
@@ -106,7 +128,7 @@ def run(a):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--opponent", choices=["random", "stockfish"], default="random")
+    ap.add_argument("--opponent", choices=["random", "greedy", "stockfish"], default="random")
     ap.add_argument("--games", type=int, default=200); ap.add_argument("--concurrency", type=int, default=32)
     ap.add_argument("--elo", type=int, default=1320); ap.add_argument("--sf-time", type=float, default=0.05); ap.add_argument("--sf-depth", type=int, default=0)
     ap.add_argument("--stockfish", default="stockfish"); ap.add_argument("--weights", default=str(DATA / "train_gpu" / "model_step11600.pt"))
@@ -114,5 +136,5 @@ if __name__ == "__main__":
     ap.add_argument("--max-plies", type=int, default=300); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default=None); ap.add_argument("--allow-repetition", action="store_true")
     a = ap.parse_args()
-    a.tag = a.tag or (a.opponent if a.opponent == "random" else f"stockfish_depth{a.sf_depth}" if a.sf_depth else f"stockfish{a.elo}")
+    a.tag = a.tag or (a.opponent if a.opponent in ("random", "greedy") else f"stockfish_depth{a.sf_depth}" if a.sf_depth else f"stockfish{a.elo}")
     run(a)
