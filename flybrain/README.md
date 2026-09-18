@@ -300,3 +300,79 @@ either, which makes sense for a board that never moves.
 That is a real answer to the question Phase 5 was designed to ask. The chess ability such as it
 is lives entirely in the visual system, and the parts of the fly's brain that make it clever are
 not involved.
+
+## Phase 7: reinforcement learning (18 Sep 2026)
+
+Every phase before this taught the fly by imitation. It was shown a position, told which move a
+human — later Stockfish — had played, and scored on whether it matched. It was never once told
+that a move it chose had lost a rook. Phase 7 closes that loop and the fly learns from its own
+games.
+
+**The environment** (`flybrain/env.py`). One step is a ply pair: the fly moves, the opponent
+replies, and the fly is handed the position it now has to deal with. Ninety-six games run at
+once so that every decision point in the batch goes through the brain in a single forward pass,
+which is what makes 144,209 neurons per position affordable. The reward is the game result from
+the fly's point of view, ±1 and 0, plus a potential-based material term,
+`gamma * phi(s') - phi(s)` with `phi = tanh(material advantage / 5)`. Finished games are refilled
+immediately so every forward pass runs at full width.
+
+**The algorithm** (`flybrain/rl.py`). PPO. Moves are sampled from the legal-masked move head
+rather than taken greedily, because a policy that never varies can never discover anything;
+GAE(lambda) turns the rewards into an advantage per move; several epochs of a clipped surrogate
+keep any one batch of games from moving the policy far; an entropy bonus resists premature
+collapse; and a KL penalty against the frozen supervised policy anchors the fly to the chess it
+already had. The critic is a new scalar head on the same 1,314 descending neurons the move head
+reads, trained from scratch — the supervised value head predicts a three-way result from White's
+point of view, which is not the baseline this needs. Trained: the per-neuron gains, the biases
+and the move head, 5.83 M of the model's 27.10 M parameters. The wiring, the signs and the
+synapse counts stay fixed, as in every phase.
+
+**The run.** 920 iterations, **1,413,120 of the fly's own moves across 20,477 games**, 150 minutes
+on one RTX 4090, $1.29. Entropy fell from 2.07 to 1.22 and then held, so it kept exploring. The
+KL from the supervised policy rose to 0.79, then came back to 0.63: the fly wandered, found the
+wandering unprofitable, and the anchor pulled it back. Learning curve in `data/rl_curve.svg`.
+
+**It learned, and it learned the wrong thing.** Across 92 held-out evaluations of 96 games each,
+the score against the greedy capture bot rose from 0.280 in the first half of the run to 0.324 in
+the second, +0.044 ± 0.008 — 5.4 standard errors, not noise. But the in-training evaluation allows
+repetitions, which flatters a shuffler. Replaying the Phase 4 matches with both sets of weights
+under identical settings, anti-repetition rule applied to both, 400 games each:
+
+<!-- PHASE7_RESULTS:begin -->
+| opponent | weights | games | W | D | L | score | change |
+|---|---|---|---|---|---|---|---|
+| greedy capture bot | supervised | 400 | 15 | 216 | 169 | 0.307 | — |
+|  | after RL | 400 | 8 | 245 | 147 | 0.326 | +0.019 ± 0.019 (+1.0 SE, no change) |
+| random mover | supervised | 400 | 140 | 253 | 7 | 0.666 | — |
+|  | after RL | 400 | 101 | 297 | 2 | 0.624 | -0.042 ± 0.017 (-2.5 SE, worse) |
+| Stockfish 17, depth 1 | supervised | 200 | 0 | 20 | 180 | 0.050 | — |
+|  | after RL | 197 | 0 | 16 | 181 | 0.041 | -0.009 ± 0.014 (-0.7 SE, no change) |
+<!-- PHASE7_RESULTS:end -->
+
+The Stockfish row has 197 games rather than 200 in the RL arm: an engine call blocked on one of
+the long games and the match was stopped, so the completed games were scored from the PGN
+(`tools_summarise_pgn.py`), with both arms scored by the same code. Against a real engine the
+drawing trick buys nothing, because Stockfish converts.
+
+
+Look at the columns rather than the score. Losses fell in both matchups. Wins fell in both.
+Draws absorbed everything. PPO turned the fly into a drawing machine: substantially harder to
+beat, substantially worse at winning. Against the greedy bot, which was beating it, that is
+roughly break-even. Against the random mover, which it was beating, it is a straight loss.
+
+**Why, and it is a design error rather than a bug.** The material term pays the fly for not
+losing material. For a policy that cannot calculate, the cheapest way to never lose material is
+to never commit: shuffle, trade down, hold. It optimised exactly what it was paid for.
+Potential-based shaping guarantees that the *optimal* policy is unchanged (Ng, Harada & Russell
+1999); it says nothing about which policy is easiest to reach on a finite budget inside a
+constrained policy class, and the fly went to the easy one. This is reward misspecification in
+its most ordinary form, and a working pipeline is supposed to surface it in an afternoon, which
+is what happened.
+
+**What would be tried next, in order.** Drop the shaping to zero and pay only for the result,
+accepting a much sparser signal. Raise the step size: the KL from the rollout policy ran at
+about +0.008 per iteration against a 0.03 target, so PPO was barely using its trust region.
+Free the 21 M per-edge gains (`--train all`), since the supervised phase found almost all of its
+capacity there and this run trained under a quarter of the model. None of these were run: the
+finding above is the result, and inventing a better number for it would be the one thing this
+project has not done.

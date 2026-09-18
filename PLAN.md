@@ -161,10 +161,52 @@ demo constrains it.
    engine built in Phase 4.
 Done when: a stranger can play the fly in a garden and watch it walk over and move the pieces.
 
+**Status 2026-09-18 — built, with one half missing.** The garden, the fly-scale set, the walk, the
+grip-carry-release and the brain panel all exist, and the rendered demo shows the fly playing a
+real game against Stockfish and physically moving its own pieces (`flybrain/scene.py`,
+`flybrain/demo.py`). What does not exist is the interactive path: you cannot sit down and play the
+fly inside the garden. `./fly-uci` lets you play it in any chess GUI, which is not the same thing.
+That is the one item of the original specification still open.
+
 **Open fork.** With no physics left, the choice of MuJoCo versus the browser is now about who
 watches it. MuJoCo uses the flybody meshes natively and renders a better hero video; a browser
 build is a link anyone can open and reuses the Cloud Atlas viewer for the brain inset. The
 flybody meshes export to glTF, so the asset survives either choice.
+
+### 7 — Learning from its own games (18 Sep 2026) — DONE
+Goal: stop teaching the fly by imitation and let the result of the game be the teacher. Phases 3
+and 4 showed it a position and told it which move someone else played; nothing in that ever told
+it that a move it chose had lost a rook.
+
+1. **The environment** (`flybrain/env.py`). One step is a ply pair. Ninety-six games in parallel so
+   every decision point in the batch is one forward pass. Reward: the game result from the fly's
+   point of view, plus a potential-based material term.
+2. **The algorithm** (`flybrain/rl.py`). PPO: sampled moves over the legal mask, GAE(lambda),
+   clipped surrogate, entropy bonus, a scalar critic on the descending neurons, and a KL penalty
+   against the frozen supervised policy as the anchor.
+3. **The run.** 920 iterations, 1,413,120 of the fly's own moves across 20,477 games, 150 minutes
+   on one RTX 4090, $1.29.
+
+**Result: it learned, and it learned the wrong thing.** The score against the greedy bot rose by
++0.044 ± 0.008 during training, but under the anti-repetition rule the gain is +0.019 ± 0.019
+against that bot and **−0.042 ± 0.017 against a random mover** — significantly worse. Losses fell
+in both matchups and wins fell in both; draws absorbed everything. The material shaping term pays
+for not losing material, and for a policy that cannot calculate the cheapest way to never lose
+material is to never commit. It optimised exactly what it was paid for.
+
+<!-- PHASE7_RESULTS:begin -->
+| opponent | weights | games | W | D | L | score | change |
+|---|---|---|---|---|---|---|---|
+| greedy capture bot | supervised | 400 | 15 | 216 | 169 | 0.307 | — |
+|  | after RL | 400 | 8 | 245 | 147 | 0.326 | +0.019 ± 0.019 (+1.0 SE, no change) |
+| random mover | supervised | 400 | 140 | 253 | 7 | 0.666 | — |
+|  | after RL | 400 | 101 | 297 | 2 | 0.624 | -0.042 ± 0.017 (-2.5 SE, worse) |
+| Stockfish 17, depth 1 | supervised | 200 | 0 | 20 | 180 | 0.050 | — |
+|  | after RL | 197 | 0 | 16 | 181 | 0.041 | -0.009 ± 0.014 (-0.7 SE, no change) |
+<!-- PHASE7_RESULTS:end -->
+
+Done: the pipeline exists, runs, and produced an interpretable negative result. The reward, not
+the machinery, is what a follow-up would change.
 
 ## Compute and tools
 

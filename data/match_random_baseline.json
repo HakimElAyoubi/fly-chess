@@ -1,0 +1,33 @@
+{
+ "opponent": "random",
+ "games": 400,
+ "fly_temperature": 0.0,
+ "avoid_repetition": true,
+ "wins": 140,
+ "draws": 253,
+ "losses": 7,
+ "score": 0.66625,
+ "score_95ci": [
+  0.6413809808389015,
+  0.6911190191610985
+ ],
+ "elo_diff": 120.08637906479885,
+ "elo_diff_95ci": [
+  100.99310361913048,
+  139.90467077685093
+ ],
+ "fly_elo_estimate": null,
+ "fly_elo_95ci": null,
+ "mean_plies": 183.9625,
+ "terminations": {
+  "50-move rule": 6,
+  "checkmate": 147,
+  "insufficient material": 6,
+  "max plies": 74,
+  "repetition": 118,
+  "stalemate": 49
+ },
+ "score_as_white": 0.66,
+ "score_as_black": 0.6725,
+ "minutes": 1.5161808093388875
+}
