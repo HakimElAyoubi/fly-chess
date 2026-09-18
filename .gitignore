@@ -19,3 +19,6 @@ data/train_*/
 .env
 remote/instance.env
 data/.*
+data/*.mp4
+data/progress.json
+data/*.log
