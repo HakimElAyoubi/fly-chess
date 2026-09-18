@@ -1,0 +1,206 @@
+{
+ "weights": "/workspace/fly-chess/data/train_gpu/model_step11600.pt",
+ "n_positions": 2048,
+ "intact": {
+  "top1": 0.203125,
+  "legal": 0.8046875
+ },
+ "groups": {
+  "optic lobe (intrinsic)": {
+   "neurons": 89390,
+   "top1": 0.05224609375,
+   "legal": 0.35791015625,
+   "top1_drop": 0.15087890625,
+   "legal_drop": 0.44677734375
+  },
+  "central brain (intrinsic)": {
+   "neurons": 32160,
+   "top1": 0.111328125,
+   "legal": 0.5869140625,
+   "top1_drop": 0.091796875,
+   "legal_drop": 0.2177734375
+  },
+  "visual projection neurons": {
+   "neurons": 9201,
+   "top1": 0.0693359375,
+   "legal": 0.20556640625,
+   "top1_drop": 0.1337890625,
+   "legal_drop": 0.59912109375
+  },
+  "visual centrifugal": {
+   "neurons": 563,
+   "top1": 0.197265625,
+   "legal": 0.802734375,
+   "top1_drop": 0.005859375,
+   "legal_drop": 0.001953125
+  },
+  "descending neurons": {
+   "neurons": 1314,
+   "top1": 0.05078125,
+   "legal": 0.00048828125,
+   "top1_drop": 0.15234375,
+   "legal_drop": 0.80419921875
+  },
+  "ascending neurons": {
+   "neurons": 1846,
+   "top1": 0.18798828125,
+   "legal": 0.75146484375,
+   "top1_drop": 0.01513671875,
+   "legal_drop": 0.05322265625
+  },
+  "photoreceptors": {
+   "neurons": 4114,
+   "top1": 0.06640625,
+   "legal": 0.27880859375,
+   "top1_drop": 0.13671875,
+   "legal_drop": 0.52587890625
+  },
+  "brain sensory axons": {
+   "neurons": 4868,
+   "top1": 0.171875,
+   "legal": 0.6796875,
+   "top1_drop": 0.03125,
+   "legal_drop": 0.125
+  },
+  "mushroom body: Kenyon cells": {
+   "neurons": 4064,
+   "top1": 0.2041015625,
+   "legal": 0.80517578125,
+   "top1_drop": -0.0009765625,
+   "legal_drop": -0.00048828125
+  },
+  "mushroom body: outputs": {
+   "neurons": 97,
+   "top1": 0.20361328125,
+   "legal": 0.80419921875,
+   "top1_drop": -0.00048828125,
+   "legal_drop": 0.00048828125
+  },
+  "mushroom body: dopaminergic": {
+   "neurons": 340,
+   "top1": 0.203125,
+   "legal": 0.8046875,
+   "top1_drop": 0.0,
+   "legal_drop": 0.0
+  },
+  "central complex": {
+   "neurons": 2950,
+   "top1": 0.2021484375,
+   "legal": 0.80517578125,
+   "top1_drop": 0.0009765625,
+   "legal_drop": -0.00048828125
+  },
+  "lateral horn": {
+   "neurons": 2028,
+   "top1": 0.201171875,
+   "legal": 0.80224609375,
+   "top1_drop": 0.001953125,
+   "legal_drop": 0.00244140625
+  },
+  "olfactory receptor neurons": {
+   "neurons": 2635,
+   "top1": 0.20263671875,
+   "legal": 0.80517578125,
+   "top1_drop": 0.00048828125,
+   "legal_drop": -0.00048828125
+  },
+  "antennal lobe projection": {
+   "neurons": 686,
+   "top1": 0.2041015625,
+   "legal": 0.80419921875,
+   "top1_drop": -0.0009765625,
+   "legal_drop": 0.00048828125
+  },
+  "antennal lobe local": {
+   "neurons": 420,
+   "top1": 0.203125,
+   "legal": 0.8046875,
+   "top1_drop": 0.0,
+   "legal_drop": 0.0
+  },
+  "gustatory": {
+   "neurons": 355,
+   "top1": 0.19873046875,
+   "legal": 0.78857421875,
+   "top1_drop": 0.00439453125,
+   "legal_drop": 0.01611328125
+  },
+  "mechanosensory": {
+   "neurons": 2157,
+   "top1": 0.17529296875,
+   "legal": 0.67626953125,
+   "top1_drop": 0.02783203125,
+   "legal_drop": 0.12841796875
+  },
+  "lamina (L1-L5)": {
+   "neurons": 8883,
+   "top1": 0.14306640625,
+   "legal": 0.2490234375,
+   "top1_drop": 0.06005859375,
+   "legal_drop": 0.5556640625
+  },
+  "medulla intrinsic (Mi)": {
+   "neurons": 9589,
+   "top1": 0.13525390625,
+   "legal": 0.568359375,
+   "top1_drop": 0.06787109375,
+   "legal_drop": 0.236328125
+  },
+  "distal medulla (Dm)": {
+   "neurons": 8175,
+   "top1": 0.08447265625,
+   "legal": 0.25439453125,
+   "top1_drop": 0.11865234375,
+   "legal_drop": 0.55029296875
+  },
+  "transmedullary (Tm, TmY)": {
+   "neurons": 28042,
+   "top1": 0.11962890625,
+   "legal": 0.55615234375,
+   "top1_drop": 0.08349609375,
+   "legal_drop": 0.24853515625
+  },
+  "motion detectors (T4, T5)": {
+   "neurons": 13580,
+   "top1": 0.18994140625,
+   "legal": 0.7841796875,
+   "top1_drop": 0.01318359375,
+   "legal_drop": 0.0205078125
+  },
+  "lobula columnar (LC, LPLC)": {
+   "neurons": 5807,
+   "top1": 0.14990234375,
+   "legal": 0.73681640625,
+   "top1_drop": 0.05322265625,
+   "legal_drop": 0.06787109375
+  },
+  "medulla tangential (Pm, Li)": {
+   "neurons": 2823,
+   "top1": 0.19970703125,
+   "legal": 0.7890625,
+   "top1_drop": 0.00341796875,
+   "legal_drop": 0.015625
+  },
+  "CX: ring neurons (ER)": {
+   "neurons": 282,
+   "top1": 0.2021484375,
+   "legal": 0.8046875,
+   "top1_drop": 0.0009765625,
+   "legal_drop": 0.0
+  },
+  "CX: compass (EPG, PEG, PEN)": {
+   "neurons": 110,
+   "top1": 0.203125,
+   "legal": 0.8046875,
+   "top1_drop": 0.0,
+   "legal_drop": 0.0
+  },
+  "CX: fan-shaped body": {
+   "neurons": 2366,
+   "top1": 0.203125,
+   "legal": 0.80517578125,
+   "top1_drop": 0.0,
+   "legal_drop": -0.00048828125
+  }
+ }
+}

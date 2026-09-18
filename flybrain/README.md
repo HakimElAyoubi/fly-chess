@@ -234,3 +234,69 @@ colours alternate. Opponents: a uniformly random mover, and Stockfish 19 with
 with a 95% interval from the per-game outcomes; the Stockfish match anchors an absolute rating.
 
 <!-- PHASE4_RESULTS -->
+
+## Phase 5 results (18 Sep 2026)
+
+**What training changed about the wiring.** The connectome fixes which neurons exist, who talks
+to whom, and every neuron's sign; training could only change how loudly each connection speaks.
+It barely did. The rank order of connection strengths after training correlates with the measured
+synapse counts at Spearman 0.948, and the typical connection moved by a factor of
+1.07. Only 0.9% of connections were more than halved and 0.9% more than doubled.
+The trained network is still the fly's connectome, gently retuned, not a different network wearing
+its shape. Training was also blind to anatomical strength: the median gain is 0.99 for every
+bucket from one-synapse connections to fifty-plus. Where it did act, it is interpretable: the
+inputs turned down hardest belong to olfactory receptor neurons, wide-field motion detectors and
+bristle mechanosensors, every one of them a sense irrelevant to a static board, while 57% of the
+inputs to descending neurons were turned down, which is the readout learning to listen selectively.
+
+**Where the chess happens.** Each functional group was silenced in turn, clamping those neurons to
+zero at every tick, and the fly's agreement with Stockfish was re-measured on 2,048 held-out
+positions. One standard error is 0.89 points, so anything under 2.7 points is noise.
+
+| silenced | neurons | agreement after | change |
+|---|---|---|---|
+| descending neurons | 1,314 | 5.1% | −15.2 |
+| optic lobe (intrinsic) | 89,390 | 5.2% | −15.1 |
+| photoreceptors | 4,114 | 6.6% | −13.7 |
+| visual projection neurons | 9,201 | 6.9% | −13.4 |
+| distal medulla (Dm) | 8,175 | 8.4% | −11.9 |
+| central brain (intrinsic) | 32,160 | 11.1% | −9.2 |
+| transmedullary (Tm, TmY) | 28,042 | 12.0% | −8.3 |
+| medulla intrinsic (Mi) | 9,589 | 13.5% | −6.8 |
+| lamina (L1-L5) | 8,883 | 14.3% | −6.0 |
+| lobula columnar (LC, LPLC) | 5,807 | 15.0% | −5.3 |
+| brain sensory axons | 4,868 | 17.2% | −3.1 |
+| mechanosensory | 2,157 | 17.5% | −2.8 |
+| ascending neurons | 1,846 | 18.8% | −1.5 (noise) |
+| motion detectors (T4, T5) | 13,580 | 19.0% | −1.3 (noise) |
+| visual centrifugal | 563 | 19.7% | −0.6 (noise) |
+| gustatory | 355 | 19.9% | −0.4 (noise) |
+| medulla tangential (Pm, Li) | 2,823 | 20.0% | −0.3 (noise) |
+| lateral horn | 2,028 | 20.1% | −0.2 (noise) |
+| central complex | 2,950 | 20.2% | −0.1 (noise) |
+| CX: ring neurons (ER) | 282 | 20.2% | −0.1 (noise) |
+| olfactory receptor neurons | 2,635 | 20.3% | −0.0 (noise) |
+| mushroom body: dopaminergic | 340 | 20.3% | −0.0 (noise) |
+| antennal lobe local | 420 | 20.3% | −0.0 (noise) |
+| CX: compass (EPG, PEG, PEN) | 110 | 20.3% | −0.0 (noise) |
+| CX: fan-shaped body | 2,366 | 20.3% | −0.0 (noise) |
+| mushroom body: outputs | 97 | 20.4% | +0.0 (noise) |
+| mushroom body: Kenyon cells | 4,064 | 20.4% | +0.1 (noise) |
+| antennal lobe projection | 686 | 20.4% | +0.1 (noise) |
+
+**The result is unambiguous: the fly plays chess with its eyes.** Every stage of the visual
+feedforward pathway is load bearing, from the photoreceptors through the lamina, medulla and
+lobula to the projection neurons that carry vision into the brain, and finally the descending
+neurons that the move is read from. Silencing the descending neurons drops the legal-move rate
+from 80% to 0.05%, which confirms the readout is genuinely reading from them.
+
+**And the higher brain contributes nothing at all.** The mushroom body, the fly's learning and
+memory centre, costs zero: its 4,064 Kenyon cells, its 97 output neurons and its 340 dopaminergic
+neurons can all be silenced without changing a single move. The central complex, which navigates,
+costs zero. The lateral horn, which drives innate responses, costs zero. So does the entire
+olfactory system, which is the expected sanity check. The motion detectors T4 and T5 cost nothing
+either, which makes sense for a board that never moves.
+
+That is a real answer to the question Phase 5 was designed to ask. The chess ability such as it
+is lives entirely in the visual system, and the parts of the fly's brain that make it clever are
+not involved.

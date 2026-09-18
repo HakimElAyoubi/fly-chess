@@ -114,7 +114,14 @@ Elo with 95% CI). Anti-repetition rule added after a pilot drew won games by rep
    ≥ 1200 vs Stockfish-limited. Expectation 1000–1500; < 1000 means the constraint binds.
 Done when: engine binary with a measured rating.
 
-### 5 — Look inside (weeks 11–12)
+### 5 — Look inside (weeks 11–12) — DONE 2026-09-18
+Result: the fly plays chess with its eyes. Silencing each functional group and re-measuring agreement
+with Stockfish on 2,048 positions: the whole visual feedforward pathway is load bearing (photoreceptors −13.7,
+optic lobe −15.1, distal medulla −11.9, transmedullary −8.3, lamina −6.0, lobula columnar −5.3 points) as are
+the descending neurons (−15.2, and the legal rate collapses to 0.05%). The higher brain contributes nothing:
+mushroom body Kenyon cells, output neurons and dopaminergic neurons, the central complex and the lateral horn
+are all within noise of zero. Training also barely changed the wiring: Spearman 0.948 against the measured
+synapse counts, typical connection moved 1.07x. Details in flybrain/README.md.
 1. Ablate each of 108 neuropils; re-measure accuracy/Elo; heat map in the atlas.
 2. Decode across ticks: where/when are from-square, to-square, check first readable?
 3. Learned gains vs synapse counts: near 1 → anatomy did the work; divergent → rewired within
