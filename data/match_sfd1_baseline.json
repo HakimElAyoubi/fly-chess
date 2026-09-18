@@ -1,0 +1,30 @@
+{
+ "opponent": "Stockfish 17 (depth 1)",
+ "games": 200,
+ "fly_temperature": 0.0,
+ "avoid_repetition": true,
+ "wins": 0,
+ "draws": 20,
+ "losses": 180,
+ "score": 0.05,
+ "score_95ci": [
+  0.02915889257275493,
+  0.07084110742724507
+ ],
+ "elo_diff": -511.50144038113154,
+ "elo_diff_95ci": [
+  -608.9508524458524,
+  -447.1218583965648
+ ],
+ "fly_elo_estimate": null,
+ "fly_elo_95ci": null,
+ "mean_plies": 78.615,
+ "terminations": {
+  "checkmate": 180,
+  "repetition": 19,
+  "stalemate": 1
+ },
+ "score_as_white": 0.045,
+ "score_as_black": 0.055,
+ "from_pgn": "data/match_sfd1_baseline.pgn"
+}
