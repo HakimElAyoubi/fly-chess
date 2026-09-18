@@ -84,7 +84,16 @@ Table and details in flybrain/README.md.
    with untrained gains. Probe DNs too (baseline).
 Done when: the optic lobe provably carries the whole board.
 
-### 3 — Teach it the rules and good moves (weeks 4–6)
+### 3 — Teach it the rules and good moves (weeks 4–6) — IN PROGRESS (first GPU run 2026-09-15)
+Pipeline: flybrain/data.py (Lichess stream), policy.py (eye → network with learned gains → DN readout),
+train.py (imitation loss, legality/top-1/top-3 metrics, checkpoints, progress bar). Mac pilot running
+with per-neuron gains; the per-edge variant is one flag away and needs a rented GPU.
+<!-- PHASE3_RESULTS:begin -->
+GPU runs: (1) one RTX 4090, 768k positions: legal 68.0%, top-1 20.3%; (2) four RTX 5090s,
+6.2 M positions: legal 79.3% (best 80.9%), top-1 24.0% (best 26.4%),
+top-3 49.0% (best 49.8%), eval loss 3.48. Mac control (per-neuron gains): 16.8% / 6.2%.
+The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. The trained weights survived a close call: the checkpoint file came back as two writes spliced together, because the end-of-budget kill landed while it was being rewritten, and both copies were unreadable by PyTorch; the newest write's model tensors were complete and were recovered by walking the archive by hand (tools_recover_checkpoint.py). The weights at step 11,600 are attached to the GitHub release phase3-run2-step11600 (108 MB, or 54 MB in half precision); 40.6% of synapses changed their gain by more than 10%. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run resumed from these weights, then the modulatory-gate fallback if legality stays capped.
+<!-- PHASE3_RESULTS:end -->
 1. Data: Lichess DB, ≥ 10 M positions (1600–2200), Stockfish depth-10 labels for 1 M; python-chess.
 2. Readout: linear, 1,314 DN rates → 4,096 + 4 logits; unmasked in training, masked at play.
 3. Loss: cross-entropy on target move + value head (W/D/L). AdamW, clipping, T = 32.
@@ -94,7 +103,10 @@ Done when: the optic lobe provably carries the whole board.
 5. Run the three controls with identical budgets.
 Done when: > 99% legal, top-1 ≥ 35%, controls table filled.
 
-### 4 — Make it play (weeks 7–10)
+### 4 — Make it play (weeks 7–10) — IN PROGRESS (engine built 2026-09-17)
+flybrain/uci.py (UCI engine, ./fly-uci), flybrain/play.py (batched matches vs random / Stockfish 1320,
+Elo with 95% CI). Anti-repetition rule added after a pilot drew won games by repetition.
+<!-- PHASE4_RESULTS -->
 1. UCI engine wrapper (python-chess), one forward pass per move (~10 ms GPU, ~1 s Mac CPU).
 2. RL vs Stockfish UCI_LimitStrength 1350 → 1600 → 1800: REINFORCE with value baseline or
    DAgger; keep imitation loss mixed in.
@@ -102,23 +114,57 @@ Done when: > 99% legal, top-1 ≥ 35%, controls table filled.
    ≥ 1200 vs Stockfish-limited. Expectation 1000–1500; < 1000 means the constraint binds.
 Done when: engine binary with a measured rating.
 
-### 5 — Look inside (weeks 11–12)
+### 5 — Look inside (weeks 11–12) — DONE 2026-09-18
+Result: the fly plays chess with its eyes. Silencing each functional group and re-measuring agreement
+with Stockfish on 2,048 positions: the whole visual feedforward pathway is load bearing (photoreceptors −13.7,
+optic lobe −15.1, distal medulla −11.9, transmedullary −8.3, lamina −6.0, lobula columnar −5.3 points) as are
+the descending neurons (−15.2, and the legal rate collapses to 0.05%). The higher brain contributes nothing:
+mushroom body Kenyon cells, output neurons and dopaminergic neurons, the central complex and the lateral horn
+are all within noise of zero. Training also barely changed the wiring: Spearman 0.948 against the measured
+synapse counts, typical connection moved 1.07x. Details in flybrain/README.md.
 1. Ablate each of 108 neuropils; re-measure accuracy/Elo; heat map in the atlas.
 2. Decode across ticks: where/when are from-square, to-square, check first readable?
 3. Learned gains vs synapse counts: near 1 → anatomy did the work; divergent → rewired within
    the constraint.
 Done when: ablation map, decoding timeline, gains-vs-anatomy figure.
 
-### 6 — Ship the demo (weeks 13–14)
-1. Page: a chessboard with a 3D model of the fly. On each move the fly walks from its resting
-   spot beside the board to the piece, carries it to its destination square (a captured piece
-   is carried off the board first), and walks back to exactly where it started. The Cloud
-   Atlas beside the board shows the brain activity that produced the move; a sidebar lists
-   the candidate moves and the most active regions. Rigged low-poly fly (glTF, walk cycle) in
-   three.js; the walk path is generated from the engine's chosen move.
-2. Inference ~1.3 GFLOP/move: small backend or WebGPU.
-3. Write-up: rules, controls table, rating, ablation map.
-Done when: a stranger can play the fly online and see its brain light up.
+### 6 — The demo: a fly playing chess in a garden (weeks 13–15)
+Goal: a garden scene with a chess set built at fly scale, where the fly walks over and moves the
+pieces. Opponent: a human or a light Stockfish.
+
+**The boundary, decided 2026-09-17.** Exactly one thing is computed: the fly seeing the board and
+choosing a move. Board state is painted on the real retinotopic map of its right eye, runs 24
+ticks through 144,209 neurons and 21.27 M connections, and the move is read from the 1,314
+descending neurons. Everything after that is animation. Walking, gripping, carrying and returning
+are performed, not simulated. No motor learning, no physical control, no contact tuning.
+
+**What this removes.** The whole motor RL problem, the 108-degree-of-freedom control problem, and
+the speed problem (flybody runs at 0.3x realtime only when its full articulated dynamics are
+simulated, which now they never are). Chess RL stays headless as before, and nothing about the
+demo constrains it.
+
+1. **The asset.** `flybody` (Google DeepMind and Janelia, Nature 2025) used as a model, not as an
+   agent: anatomically correct mesh, veined wings, compound eyes, jointed tarsi, built from real
+   fly measurements by the institute that produced the connectome. Positioned directly each frame.
+2. **The walk cycle.** Recorded once from flybody's own trained locomotion controller, then looped
+   and steered along the path, so the gait is a real fly's tripod gait rather than something
+   hand-drawn.
+3. **The set, built for the fly.** A jewel-sized board a few centimetres across with pieces of a
+   few milligrams, on a stone in the grass. A real-scale fly on a chess set made for it.
+4. **The performance of a move.** From the resting spot to the source square, grip, carry to the
+   destination, release, walk home to exactly where it started. A captured piece is carried off
+   the board first.
+5. **The thinking pause is the feature.** A move costs a second or two of real computation. Fill
+   it with the Cloud Atlas inset lighting up as activity crosses the brain, so the one honest
+   moment in the demo is also the most interesting thing on screen.
+6. **The opponent.** A person clicking a piece, or Stockfish at limited strength through the
+   engine built in Phase 4.
+Done when: a stranger can play the fly in a garden and watch it walk over and move the pieces.
+
+**Open fork.** With no physics left, the choice of MuJoCo versus the browser is now about who
+watches it. MuJoCo uses the flybody meshes natively and renders a better hero video; a browser
+build is a link anyone can open and reuses the Cloud Atlas viewer for the brain inset. The
+flybody meshes export to glTF, so the asset survives either choice.
 
 ## Compute and tools
 

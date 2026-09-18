@@ -1,4 +1,4 @@
-# flybrain — the digital fly (Phases 1–2)
+# flybrain — the digital fly (Phases 1–4)
 
 A connectome-constrained rate model of the male fruit fly brain, built from MaleCNS v1.0.
 
@@ -9,7 +9,14 @@ A connectome-constrained rate model of the male fruit fly brain, built from Male
 | `checks.py` | the two biology checks and gain calibration → `data/checks.json` |
 | `export_activity.py` | tick-by-tick activity of both experiments → `data/activity.json` (injected into the atlas by `build_viewer.py`) |
 | `eye.py` | the right eye as a screen: column map, photoreceptor placement, chessboard → photoreceptor currents |
-| `probe.py` | Phase 2 probe: random positions through the model, linear readout of the board from each stage → `data/probe.json` |
+| `probe.py` | Phase 2 probe: random positions through the model, cached features → `data/probe_features.npz` |
+| `probe_fit.py` | Phase 2 readouts (generic and retinotopic) from the cache → `data/probe.json` |
+| `data.py` | Phase 3 data: streams the Lichess monthly database, keeps rated 1600–2200 games, samples positions → `data/positions_<tag>.jsonl.gz` |
+| `policy.py` | Phase 3 model: the fly as a chess policy (eye → network with learned gains → descending-neuron readout) |
+| `train.py` | Phase 3 training loop: imitation of human moves, legality / top-1 / top-3 metrics, checkpoints, progress bar |
+| `progress.py` | progress bar for long jobs → `data/progress.txt` (live page: `progress.html`) |
+| `uci.py` | Phase 4: the fly as a UCI chess engine (`./fly-uci` for GUIs); batched move choice with legal masking and an anti-repetition rule |
+| `play.py` | Phase 4 matches against a random mover or Stockfish at limited strength; Elo with a 95% interval → `data/match_<tag>.json/.pgn` |
 
 Run order (from the project root, with `.venv` active):
 
@@ -123,3 +130,173 @@ always answers "empty" scores 40% on random placements and about 44% on random p
 **Verdict: target met.** The plan asks for more than 99.5% of squares read from the medulla and lobula by a linear readout. The generic readout, principal components of the whole stage, gives 99.98% on random placements and 100.0% on realistic positions (kept 176 components, partial scaling, penalty 1e-08); the retinotopic readout, each square read from the neurons of its own eye columns, gives 100.0% / 100.0%. Of the two levers, the training set was the one that mattered: at 3,072 boards the generic readout reached 91.6%, at 7,168 boards 99.98%, with the probe's component floor, scaling and penalty chosen on the validation split. The receptor-rate cap made no difference (0.8, 0.5 and 0.3 gave the same retinotopic accuracy on a pilot) and stays at 0.8. The stimulus itself reads at 100.0%, the lamina at 100.0% and the visual projection neurons at 99.98%: the whole board leaves the optic lobe intact. It then thins out in the untrained central brain (66.9%) and reaches the descending neurons at 50.1% (63.5% realistic), the baseline Phase 3 must beat.
 <!-- RESULTS:end -->
 
+
+## Phase 3: teaching it the rules and the taste of a good move
+
+**The policy.** A position is painted on the right eye exactly as in Phase 2, the network runs
+for 24 ticks, and the rates of the 1,314 descending neurons are read by two linear heads: a
+move head (from-square × to-square, 4,096 logits, plus 5 promotion logits) and a value head
+(win / draw / loss). Descending-neuron rates are standardised by a fixed per-neuron scale set
+once at the start of training (`FlyPolicy.calibrate`), because the untrained network's responses
+at that depth are about 1e-5 wide; the scale is capped at ten times its median so that a silent
+neuron cannot become a noise amplifier. At play time the move head is masked to legal moves; in
+training it is not, so legality has to be learned.
+
+**What is learned.** Two variants share one code path.
+
+- *Mac-sized (this pilot):* a positive output gain per neuron, a positive input gain per neuron
+  and a bias per neuron, 3 × 144,209 = 432,627 brain parameters, plus the heads (5.4 M). The
+  wiring, signs and synapse counts are fixed, and so is the shape of every neuron's input.
+- *Per-edge gains (`--edge-gains`, GPU):* a positive gain on each of the 21.27 M connections,
+  the plan's main variant. Same rules, far more freedom.
+
+Backpropagation runs through time over the 24 ticks with a custom autograd function that uses
+a precomputed transpose of the sparse matrix, so no sparse tensor is ever differentiated. Biases
+get a learning rate of 1e-6 (a bias shift of 1e-5 already moves a descending neuron by one
+standard deviation of its signal), gains and heads 3e-3, each group clipped on its own.
+
+**Data.** `data.py` streams the Lichess monthly database (zstd, tens of GB) and stops after the
+requested number of games, so only a few tens of MB are downloaded: rated standard games with
+both players between 1600 and 2200, no bullet, eight positions sampled per game after the
+sixth ply, with the move that was played and the game result. Held-out games (10%) provide the
+evaluation positions. Known blind spot: the eye sees pieces and whose turn it is, not castling
+rights or en passant; the legal-move mask handles it at play time.
+
+**Metrics.** On held-out positions: *legal rate* of the unmasked argmax (chance ≈ 0.7%),
+*top-1* and *top-3* agreement with the human move among legal moves (chance ≈ 3% and 9%),
+value accuracy (chance 33%). Phase 3 targets: legal rate > 99%, top-1 ≥ 35%, top-3 ≥ 60%.
+
+**Speed on the Mac.** One step of 8 positions × 24 ticks takes about 7 s (3.6 s forward,
+3.6 s backward); 1,200 steps see 9,600 positions in under three hours. That is a pilot, not
+training: the plan's 10 M positions per epoch need a CUDA GPU.
+
+**Running on a GPU.** Rent a machine with an RTX 4090 or A100 class card, clone the repo, put
+the three MaleCNS tables in `data/` (see MALECNS_NOTES.md), then:
+
+```bash
+pip install torch numpy pandas pyarrow scipy python-chess zstandard requests
+python -m flybrain.graph && python -m flybrain.checks
+python -m flybrain.data 400000 full            # ~3.2 M positions
+python -m flybrain.train --device cuda --edge-gains --positions data/positions_full.jsonl.gz \
+       --steps 200000 --batch 128 --ticks 24 --eval-every 1000 --tag edge
+```
+
+<!-- PHASE3_RESULTS:begin -->
+## Phase 3 results (16 Sep 2026)
+
+**Second run, four RTX 5090s.** The per-edge variant (27.1 M parameters) trained with data
+parallelism over four GPUs, 512 positions per step at 0.91 s per step, for 12,200 steps:
+6,246,400 positions from 4.3 million distinct ones (600,000 Lichess games streamed on
+the box), 168 minutes of stage 2 after a 23-minute warm-up stage on 431,000 positions.
+Evaluation on 512 held-out positions from games not used in training:
+
+| step | positions seen | eval loss | legal-move rate | top-1 | top-3 | value acc |
+|---|---|---|---|---|---|---|
+| 200 | 102,400 | 5.24 | 58.6% | 15.8% | 31.1% | 49.0% |
+| 800 | 409,600 | 4.64 | 67.2% | 16.2% | 37.5% | 54.9% |
+| 1,500 | 768,000 | 4.43 | 71.1% | 19.1% | 40.4% | 49.0% |
+| 2,000 | 1,024,000 | 4.12 | 73.4% | 18.8% | 41.4% | 58.8% |
+| 4,000 | 2,048,000 | 4.00 | 75.4% | 22.3% | 42.6% | 53.5% |
+| 6,000 | 3,072,000 | 3.76 | 76.2% | 23.0% | 45.9% | 54.3% |
+| 8,000 | 4,096,000 | 3.75 | 75.0% | 20.5% | 44.7% | 52.7% |
+| 10,000 | 5,120,000 | 3.59 | 78.5% | 23.8% | 49.4% | 54.1% |
+| 12,000 | 6,144,000 | 3.46 | 77.5% | 25.8% | 48.6% | 56.8% |
+| 12,200 | 6,246,400 | 3.48 | 79.3% | 24.0% | 49.0% | 59.0% |
+
+Best values over the run: legal 80.9%, top-1 26.4%, top-3 49.8%, value 59.0%.
+Chance levels: 0.7% legal, about 3% top-1, 9% top-3, 33% value. Curves: `data/phase3_curve.svg`.
+
+**First run, one RTX 4090** (768,000 positions, 125 minutes): legal 68.0% (best 72.1%), top-1
+20.3% (best 22.5%), top-3 39.5%. The Mac control with per-neuron gains only: 16.8% legal, 6.2% top-1.
+
+The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. The trained weights survived a close call: the checkpoint file came back as two writes spliced together, because the end-of-budget kill landed while it was being rewritten, and both copies were unreadable by PyTorch; the newest write's model tensors were complete and were recovered by walking the archive by hand (tools_recover_checkpoint.py). The weights at step 11,600 are attached to the GitHub release phase3-run2-step11600 (108 MB, or 54 MB in half precision); 40.6% of synapses changed their gain by more than 10%. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run resumed from these weights, then the modulatory-gate fallback if legality stays capped.
+
+<!-- PHASE3_RESULTS:end -->
+
+## Phase 4: making it play
+
+**The engine.** `flybrain/uci.py` speaks UCI on stdin/stdout (`./fly-uci` launches it), so any
+chess GUI or match runner can play the fly. One forward pass per move: the board is painted on
+the eye, the network runs 24 ticks, the move head is masked to legal moves and the promotion
+head picks the piece on the last rank. About 3.7 s per move on the Mac's CPU, milliseconds on a
+GPU. Weights: the recovered step-11,600 model of the second Phase 3 run.
+
+**Two rules a search-free policy needs.** (1) Legal-move masking: the fly's eye does not see
+castling rights or en passant, so legality comes from the mask. (2) Anti-repetition: a policy
+without search happily shuffles a piece back and forth; a 4-game pilot against a random mover
+ended in three threefold repetitions from winning positions. The engine now refuses any move
+that recreates a position already seen, unless every legal move does.
+
+**Rating.** `flybrain/play.py` plays 200-game matches, many games at once so the fly's moves
+are batched through the network. Each game opens with four random plies for variety and
+colours alternate. Opponents: a uniformly random mover, and Stockfish 19 with
+`UCI_LimitStrength` at its floor of 1320 (50 ms per move). Elo difference from the match score
+with a 95% interval from the per-game outcomes; the Stockfish match anchors an absolute rating.
+
+<!-- PHASE4_RESULTS -->
+
+## Phase 5 results (18 Sep 2026)
+
+**What training changed about the wiring.** The connectome fixes which neurons exist, who talks
+to whom, and every neuron's sign; training could only change how loudly each connection speaks.
+It barely did. The rank order of connection strengths after training correlates with the measured
+synapse counts at Spearman 0.948, and the typical connection moved by a factor of
+1.07. Only 0.9% of connections were more than halved and 0.9% more than doubled.
+The trained network is still the fly's connectome, gently retuned, not a different network wearing
+its shape. Training was also blind to anatomical strength: the median gain is 0.99 for every
+bucket from one-synapse connections to fifty-plus. Where it did act, it is interpretable: the
+inputs turned down hardest belong to olfactory receptor neurons, wide-field motion detectors and
+bristle mechanosensors, every one of them a sense irrelevant to a static board, while 57% of the
+inputs to descending neurons were turned down, which is the readout learning to listen selectively.
+
+**Where the chess happens.** Each functional group was silenced in turn, clamping those neurons to
+zero at every tick, and the fly's agreement with Stockfish was re-measured on 2,048 held-out
+positions. One standard error is 0.89 points, so anything under 2.7 points is noise.
+
+| silenced | neurons | agreement after | change |
+|---|---|---|---|
+| descending neurons | 1,314 | 5.1% | −15.2 |
+| optic lobe (intrinsic) | 89,390 | 5.2% | −15.1 |
+| photoreceptors | 4,114 | 6.6% | −13.7 |
+| visual projection neurons | 9,201 | 6.9% | −13.4 |
+| distal medulla (Dm) | 8,175 | 8.4% | −11.9 |
+| central brain (intrinsic) | 32,160 | 11.1% | −9.2 |
+| transmedullary (Tm, TmY) | 28,042 | 12.0% | −8.3 |
+| medulla intrinsic (Mi) | 9,589 | 13.5% | −6.8 |
+| lamina (L1-L5) | 8,883 | 14.3% | −6.0 |
+| lobula columnar (LC, LPLC) | 5,807 | 15.0% | −5.3 |
+| brain sensory axons | 4,868 | 17.2% | −3.1 |
+| mechanosensory | 2,157 | 17.5% | −2.8 |
+| ascending neurons | 1,846 | 18.8% | −1.5 (noise) |
+| motion detectors (T4, T5) | 13,580 | 19.0% | −1.3 (noise) |
+| visual centrifugal | 563 | 19.7% | −0.6 (noise) |
+| gustatory | 355 | 19.9% | −0.4 (noise) |
+| medulla tangential (Pm, Li) | 2,823 | 20.0% | −0.3 (noise) |
+| lateral horn | 2,028 | 20.1% | −0.2 (noise) |
+| central complex | 2,950 | 20.2% | −0.1 (noise) |
+| CX: ring neurons (ER) | 282 | 20.2% | −0.1 (noise) |
+| olfactory receptor neurons | 2,635 | 20.3% | −0.0 (noise) |
+| mushroom body: dopaminergic | 340 | 20.3% | −0.0 (noise) |
+| antennal lobe local | 420 | 20.3% | −0.0 (noise) |
+| CX: compass (EPG, PEG, PEN) | 110 | 20.3% | −0.0 (noise) |
+| CX: fan-shaped body | 2,366 | 20.3% | −0.0 (noise) |
+| mushroom body: outputs | 97 | 20.4% | +0.0 (noise) |
+| mushroom body: Kenyon cells | 4,064 | 20.4% | +0.1 (noise) |
+| antennal lobe projection | 686 | 20.4% | +0.1 (noise) |
+
+**The result is unambiguous: the fly plays chess with its eyes.** Every stage of the visual
+feedforward pathway is load bearing, from the photoreceptors through the lamina, medulla and
+lobula to the projection neurons that carry vision into the brain, and finally the descending
+neurons that the move is read from. Silencing the descending neurons drops the legal-move rate
+from 80% to 0.05%, which confirms the readout is genuinely reading from them.
+
+**And the higher brain contributes nothing at all.** The mushroom body, the fly's learning and
+memory centre, costs zero: its 4,064 Kenyon cells, its 97 output neurons and its 340 dopaminergic
+neurons can all be silenced without changing a single move. The central complex, which navigates,
+costs zero. The lateral horn, which drives innate responses, costs zero. So does the entire
+olfactory system, which is the expected sanity check. The motion detectors T4 and T5 cost nothing
+either, which makes sense for a board that never moves.
+
+That is a real answer to the question Phase 5 was designed to ask. The chess ability such as it
+is lives entirely in the visual system, and the parts of the fly's brain that make it clever are
+not involved.

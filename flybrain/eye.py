@@ -120,20 +120,25 @@ class Eye:
                       "photoreceptors_per_square_mean_by_channel": cov.mean(0).round(1).tolist(),
                       "squares_without_R1-6": int((cov[:, 0] == 0).sum())}
 
+    def _index_photoreceptors(self):
+        prs = sorted(self.pr_col)
+        self._pr_idx = np.array(prs, dtype=np.int64)
+        self._pr_colidx = np.array([self.pr_col[p] for p in prs], dtype=np.int64)
+        self._pr_chan = np.array([self.channel[p] for p in prs], dtype=np.int64)
+
     def encode(self, board: chess.Board):
         """Return the input current vector [N] for one position."""
-        levels = np.zeros((len(self.columns), 3), dtype=np.float32)
-        for sq in chess.SQUARES:
-            pc = board.piece_at(sq)
-            if pc is None:
-                continue
-            uv, gr = STATE_CODE[(pc.color, pc.piece_type)]
-            levels[self.col_square == sq, 1:] = (uv, gr)
+        if not hasattr(self, "_pr_idx"):
+            self._index_photoreceptors()
+        sq_levels = np.zeros((65, 3), dtype=np.float32)                   # row 64 = unused columns
+        for sq, pc in board.piece_map().items():
+            sq_levels[sq, 1:] = STATE_CODE[(pc.color, pc.piece_type)]
         if board.turn == chess.BLACK:
-            levels[:, 0] = TURN_LUM                                       # global brightness bias on R1-R6
+            sq_levels[:, 0] = TURN_LUM                                    # global brightness bias on R1-R6, unused columns included
+        col_sq = np.where(self.col_square >= 0, self.col_square, 64)
+        lev = sq_levels[col_sq[self._pr_colidx], self._pr_chan]
         I = np.zeros(len(self.meta), dtype=np.float32)
-        for p, c in self.pr_col.items():
-            I[p] = current(levels[c, self.channel[p]])
+        I[self._pr_idx] = np.arctanh(RATE_MAX * lev) if LINEARIZE else 2.0 * lev
         return I
 
     def targets(self, board: chess.Board):

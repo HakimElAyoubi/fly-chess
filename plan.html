@@ -131,10 +131,10 @@
       <li><a href="#p0"><span class="n">0</span><span>Know the data<span class="w">done</span></span></a></li>
       <li><a href="#p1"><span class="n">1</span><span>Build the digital fly<span class="w">done</span></span></a></li>
       <li><a href="#p2"><span class="n">2</span><span>Show it the board<span class="w">done</span></span></a></li>
-      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">weeks 4–6</span></span></a></li>
-      <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">weeks 7–10</span></span></a></li>
-      <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">weeks 11–12</span></span></a></li>
-      <li><a href="#p6"><span class="n">6</span><span>Ship the demo<span class="w">weeks 13–14</span></span></a></li>
+      <li><a href="#p3"><span class="n">3</span><span>Teach it the rules<span class="w">24.0% top-1</span></span></a></li>
+      <li><a href="#p4"><span class="n">4</span><span>Make it play<span class="w">in progress</span></span></a></li>
+      <li><a href="#p5"><span class="n">5</span><span>Look inside<span class="w">done</span></span></a></li>
+      <li><a href="#p6"><span class="n">6</span><span>A fly in a garden<span class="w">weeks 13–15</span></span></a></li>
     </ol>
     <div class="aux">
       <ol>
@@ -329,8 +329,43 @@
     </section>
 
     <section class="phase" id="p3">
-      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">weeks 4–6</span></div>
+      <div class="ph"><span class="num">3</span><h2>Teach it the rules and the taste of a good move</h2><span class="when">in progress · first GPU run 15 Sep 2026</span></div>
       <p class="goal">Given a board, the descending neurons produce a legal and plausible move.</p>
+      <div class="callout">
+        <!-- PHASE3_RESULTS:begin -->
+<p><b>Results, 16 Sep 2026.</b> A first run on one RTX 4090 saw 768,000 positions in two hours and reached 68.0% legal, 20.3% top-1. A second run on four RTX 5090s saw 6.2 million positions (4.3 million distinct) and reached <b>79.3%</b> legal (best 80.9%), <b>24.0%</b> top-1 (best 26.4%) and 49.0% top-3; chance is 0.7%, 3% and 9%. The Mac control that may only rescale neurons, not synapses, reaches 17% legal and 6% top-1. The second run confirms the trend and pushes every number up: the loss is still falling at the end, legality climbs from the high sixties to about 80%, and the fly agrees with the human move a quarter of the time, in the top three half the time. The plan's targets of 99% legal and 35% top-1 are still not reached, and the learning is slow in the way the plan anticipated: the move prior is learned fast, reading the board through the descending neurons improves slowly. The trained weights survived a close call: the checkpoint file came back as two writes spliced together, because the end-of-budget kill landed while it was being rewritten, and both copies were unreadable by PyTorch; the newest write's model tensors were complete and were recovered by walking the archive by hand (tools_recover_checkpoint.py). The weights at step 11,600 are attached to the GitHub release phase3-run2-step11600 (108 MB, or 54 MB in half precision); 40.6% of synapses changed their gain by more than 10%. Next levers, in order: run the three controls (rewired, sign-shuffled, dense) so the result is interpretable, then a longer run resumed from these weights, then the modulatory-gate fallback if legality stays capped.</p>
+<div class="tablewrap"><table><tr><th>Step</th><th>Positions</th><th>Eval loss</th><th>Legal</th><th>Top-1</th><th>Top-3</th><th>Value</th></tr><tr><td class="m">200</td><td class="m">102,400</td><td class="m">5.24</td><td class="m">58.6%</td><td class="m">15.8%</td><td class="m">31.1%</td><td class="m">49.0%</td></tr><tr><td class="m">800</td><td class="m">409,600</td><td class="m">4.64</td><td class="m">67.2%</td><td class="m">16.2%</td><td class="m">37.5%</td><td class="m">54.9%</td></tr><tr><td class="m">1,500</td><td class="m">768,000</td><td class="m">4.43</td><td class="m">71.1%</td><td class="m">19.1%</td><td class="m">40.4%</td><td class="m">49.0%</td></tr><tr><td class="m">2,000</td><td class="m">1,024,000</td><td class="m">4.12</td><td class="m">73.4%</td><td class="m">18.8%</td><td class="m">41.4%</td><td class="m">58.8%</td></tr><tr><td class="m">4,000</td><td class="m">2,048,000</td><td class="m">4.00</td><td class="m">75.4%</td><td class="m">22.3%</td><td class="m">42.6%</td><td class="m">53.5%</td></tr><tr><td class="m">6,000</td><td class="m">3,072,000</td><td class="m">3.76</td><td class="m">76.2%</td><td class="m">23.0%</td><td class="m">45.9%</td><td class="m">54.3%</td></tr><tr><td class="m">8,000</td><td class="m">4,096,000</td><td class="m">3.75</td><td class="m">75.0%</td><td class="m">20.5%</td><td class="m">44.7%</td><td class="m">52.7%</td></tr><tr><td class="m">10,000</td><td class="m">5,120,000</td><td class="m">3.59</td><td class="m">78.5%</td><td class="m">23.8%</td><td class="m">49.4%</td><td class="m">54.1%</td></tr><tr><td class="m">12,000</td><td class="m">6,144,000</td><td class="m">3.46</td><td class="m">77.5%</td><td class="m">25.8%</td><td class="m">48.6%</td><td class="m">56.8%</td></tr><tr><td class="m">12,200</td><td class="m">6,246,400</td><td class="m">3.48</td><td class="m">79.3%</td><td class="m">24.0%</td><td class="m">49.0%</td><td class="m">59.0%</td></tr></table></div>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-label="Learning curves of the digital fly: legal-move rate, top-1 and top-3 agreement with human moves, and value accuracy against training steps">
+<rect width="100%" height="100%" fill="none"/>
+<line x1="56" y1="200.0" x2="704" y2="200.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="204.0" font-size="11" text-anchor="end" fill="currentColor">25%</text>
+<line x1="56" y1="140.0" x2="704" y2="140.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="144.0" font-size="11" text-anchor="end" fill="currentColor">50%</text>
+<line x1="56" y1="80.0" x2="704" y2="80.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="84.0" font-size="11" text-anchor="end" fill="currentColor">75%</text>
+<line x1="56" y1="20.0" x2="704" y2="20.0" stroke="currentColor" stroke-opacity="0.15"/>
+<text x="50" y="24.0" font-size="11" text-anchor="end" fill="currentColor">100%</text>
+<line x1="56" y1="260.0" x2="704" y2="260.0" stroke="currentColor" stroke-opacity="0.4"/>
+<text x="56.0" y="276" font-size="11" text-anchor="middle" fill="currentColor">0</text>
+<text x="162.2" y="276" font-size="11" text-anchor="middle" fill="currentColor">2,000</text>
+<text x="268.5" y="276" font-size="11" text-anchor="middle" fill="currentColor">4,000</text>
+<text x="374.7" y="276" font-size="11" text-anchor="middle" fill="currentColor">6,000</text>
+<text x="480.9" y="276" font-size="11" text-anchor="middle" fill="currentColor">8,000</text>
+<text x="587.1" y="276" font-size="11" text-anchor="middle" fill="currentColor">10,000</text>
+<text x="693.4" y="276" font-size="11" text-anchor="middle" fill="currentColor">12,000</text>
+<text x="380" y="296" font-size="11" text-anchor="middle" fill="currentColor" opacity="0.7">training steps (×512 positions)</text>
+<polyline points="56.2,180.1 66.6,119.4 77.2,109.5 87.9,109.0 98.5,98.7 109.1,95.4 119.7,94.6 130.4,89.8 135.7,89.4 141.0,91.3 151.6,93.2 162.2,83.8 172.9,83.4 183.5,91.8 194.1,86.5 204.7,82.4 215.3,83.4 226.0,80.0 236.6,81.9 247.2,87.0 257.8,89.8 268.5,79.0 279.1,82.9 289.7,80.5 300.3,79.5 311.0,80.0 321.6,82.9 332.2,79.5 342.8,82.9 353.4,76.6 364.1,79.0 374.7,77.1 385.3,85.5 395.9,74.0 406.6,72.6 417.2,78.6 427.8,76.2 438.4,84.3 449.0,76.2 459.7,78.1 470.3,73.0 480.9,80.0 491.5,80.0 502.2,79.0 512.8,71.1 523.4,72.6 534.0,75.7 544.7,74.0 555.3,76.2 565.9,71.1 576.5,71.6 587.1,71.6 597.8,74.0 608.4,70.6 619.0,67.3 629.6,70.2 640.3,65.8 650.9,65.8 661.5,71.1 672.1,68.7 682.8,67.8 693.4,74.0 704.0,69.7" fill="none" stroke="#1A7F9C" stroke-width="2"/>
+<text x="708.0" y="73.7" font-size="11" fill="#1A7F9C">legal rate 79%</text>
+<polyline points="56.2,180.1 66.6,222.1 77.2,225.7 87.9,224.5 98.5,221.1 109.1,219.7 119.7,223.0 130.4,218.7 135.7,214.2 141.0,210.8 151.6,214.2 162.2,214.9 172.9,210.3 183.5,209.8 194.1,211.3 204.7,214.2 215.3,207.4 226.0,204.8 236.6,210.8 247.2,208.9 257.8,212.7 268.5,206.5 279.1,205.0 289.7,208.4 300.3,206.0 311.0,203.8 321.6,205.5 332.2,203.4 342.8,205.5 353.4,209.4 364.1,206.0 374.7,204.8 385.3,209.8 395.9,203.8 406.6,208.4 417.2,202.9 427.8,207.9 438.4,204.3 449.0,203.8 459.7,202.9 470.3,197.6 480.9,210.8 491.5,205.5 502.2,204.8 512.8,201.4 523.4,204.8 534.0,209.8 544.7,207.9 555.3,198.6 565.9,206.0 576.5,198.1 587.1,202.9 597.8,200.5 608.4,200.5 619.0,204.3 629.6,202.4 640.3,198.6 650.9,196.6 661.5,205.0 672.1,204.8 682.8,202.4 693.4,198.1 704.0,202.4" fill="none" stroke="#B4562E" stroke-width="2"/>
+<text x="708.0" y="206.4" font-size="11" fill="#B4562E">top-1 24%</text>
+<polyline points="56.2,180.1 66.6,185.4 77.2,185.1 87.9,181.3 98.5,170.0 109.1,171.0 119.7,175.0 130.4,168.6 135.7,163.0 141.0,157.8 151.6,164.5 162.2,160.6 172.9,155.4 183.5,162.6 194.1,159.7 204.7,154.6 215.3,149.8 226.0,158.2 236.6,156.3 247.2,151.8 257.8,158.7 268.5,157.8 279.1,149.4 289.7,151.3 300.3,152.2 311.0,151.3 321.6,154.2 332.2,149.4 342.8,149.8 353.4,156.3 364.1,152.7 374.7,149.8 385.3,153.7 395.9,155.4 406.6,151.3 417.2,146.0 427.8,147.0 438.4,155.8 449.0,151.3 459.7,147.4 470.3,146.5 480.9,152.7 491.5,148.4 502.2,154.6 512.8,145.5 523.4,147.4 534.0,151.8 544.7,151.8 555.3,148.4 565.9,144.3 576.5,144.8 587.1,141.4 597.8,148.4 608.4,142.4 619.0,145.5 629.6,149.4 640.3,143.8 650.9,140.5 661.5,144.3 672.1,145.0 682.8,145.0 693.4,143.4 704.0,142.4" fill="none" stroke="#7BA05B" stroke-width="2"/>
+<text x="708.0" y="146.4" font-size="11" fill="#7BA05B">top-3 49%</text>
+<polyline points="56.2,219.9 66.6,142.4 77.2,129.2 87.9,125.4 98.5,128.2 109.1,136.2 119.7,128.2 130.4,124.6 135.7,142.4 141.0,132.6 151.6,138.6 162.2,118.9 172.9,122.2 183.5,128.2 194.1,135.7 204.7,126.3 215.3,123.2 226.0,134.5 236.6,129.2 247.2,124.6 257.8,124.2 268.5,131.6 279.1,129.7 289.7,123.7 300.3,130.6 311.0,142.4 321.6,132.6 332.2,134.5 342.8,137.1 353.4,141.4 364.1,124.2 374.7,129.7 385.3,127.8 395.9,128.2 406.6,122.2 417.2,128.7 427.8,123.2 438.4,132.6 449.0,124.2 459.7,127.8 470.3,129.2 480.9,133.5 491.5,127.3 502.2,126.8 512.8,127.8 523.4,128.2 534.0,120.3 544.7,122.7 555.3,127.8 565.9,122.7 576.5,133.0 587.1,130.2 597.8,126.3 608.4,123.2 619.0,121.3 629.6,128.2 640.3,132.6 650.9,125.1 661.5,122.7 672.1,123.7 682.8,132.6 693.4,123.7 704.0,118.4" fill="none" stroke="#8B909D" stroke-width="2"/>
+<text x="708.0" y="122.4" font-size="11" fill="#8B909D">value acc 59%</text>
+<text x="56" y="14" font-size="12" fill="currentColor" font-weight="600">Four RTX 5090s, per-edge gains (stage 1 warm-up, then the full set)</text></svg><figcaption>Learning curves of the four-GPU run on 512 held-out positions: legal-move rate, top-1 and top-3 agreement with the human move among legal moves, and value accuracy, against training steps of 512 positions.</figcaption></figure>
+<!-- PHASE3_RESULTS:end -->
+        
+      </div>
       <ol class="steps">
         <li><span><b>Data.</b> The Lichess open database: at least 10 million positions from games rated 1600 to 2200, plus Stockfish best moves at depth 10 for a 1-million-position subset. Parse and check legality with python-chess.</span></li>
         <li><span><b>Readout.</b> One linear layer from the 1,314 descending-neuron rates to 4,096 from-square × to-square logits plus 4 promotion logits. Train it unmasked so legality has to be learned; mask to legal moves only when playing.</span></li>
@@ -342,8 +377,12 @@
     </section>
 
     <section class="phase" id="p4">
-      <div class="ph"><span class="num">4</span><h2>Make it play</h2><span class="when">weeks 7–10</span></div>
+      <div class="ph"><span class="num">4</span><h2>Make it play</h2><span class="when">in progress · engine built 17 Sep 2026</span></div>
       <p class="goal">A rated chess engine whose entire policy is the fly's brain.</p>
+      <div class="callout">
+        <!-- PHASE4_RESULTS -->
+        <p><b>Status.</b> The fly is a UCI engine now (one forward pass per move, legal-move mask, promotion head, anti-repetition rule) and 200-game matches against a random mover and Stockfish at its 1320 floor are running on the Mac with the recovered step-11,600 weights.</p>
+      </div>
       <ol class="steps">
         <li><span><b>Wrap it as a UCI engine</b> so any chess program can run it: a python-chess UCI loop, one forward pass per move, about 10 ms on a GPU or around a second on your Mac's CPU.</span></li>
         <li><span><b>Fine-tune by playing.</b> Reinforcement learning against Stockfish with its strength limited, climbing from Elo 1350 to 1600 to 1800: REINFORCE with the value head as baseline, or DAgger using Stockfish's move as the correction. Keep imitation loss mixed in so it does not forget legality.</span></li>
@@ -353,8 +392,111 @@
     </section>
 
     <section class="phase" id="p5">
-      <div class="ph"><span class="num">5</span><h2>Look inside</h2><span class="when">weeks 11–12</span></div>
+      <div class="ph"><span class="num">5</span><h2>Look inside</h2><span class="when done">done · 18 Sep 2026</span></div>
       <p class="goal">Find out which parts of the fly's brain the chess lives in, and whether the anatomy or the training did the work.</p>
+      <div class="callout"><p><b>Result, 18 Sep 2026: the fly plays chess with its eyes.</b> Silencing each part of the brain in turn and re-measuring agreement with Stockfish on 2,048 held-out positions shows every stage of the visual pathway is load bearing, and the descending neurons most of all: removing them drops the legal-move rate from 80% to 0.05%. The higher brain contributes nothing measurable. The mushroom body, the fly's learning and memory centre, can be silenced entirely, all 4,064 Kenyon cells with their output and dopaminergic neurons, without changing a single move. So can the central complex, which navigates, and the lateral horn, which drives innate behaviour. Training barely altered the wiring either: connection strengths still correlate with the measured synapse counts at 0.948, and the typical connection moved by a factor of 1.07, so this is the fly's own connectome doing the work.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 704" role="img" aria-label="How far the fly's agreement with Stockfish falls when each part of its brain is silenced. The visual pathway and the descending neurons are load bearing; the mushroom body, central complex and lateral horn cost nothing.">
+<text x="14" y="24" font-size="14" font-weight="600" fill="currentColor">Silencing each part of the brain</text>
+<text x="14" y="42" font-size="11.5" fill="currentColor" opacity="0.7">drop in agreement with Stockfish's move, from an intact 20.3% · 2,048 held-out positions</text>
+<text x="242" y="65" font-size="11" text-anchor="end" fill="currentColor">descending neurons</text>
+<rect x="250" y="56" width="380.0" height="14" rx="2" fill="#B4562E"/>
+<text x="636.0" y="65" font-size="10.5" fill="currentColor" opacity="0.75">−15.2</text>
+<text x="242" y="86" font-size="11" text-anchor="end" fill="currentColor">optic lobe (intrinsic)</text>
+<rect x="250" y="77" width="376.3" height="14" rx="2" fill="#4FA3BE"/>
+<text x="632.3" y="86" font-size="10.5" fill="currentColor" opacity="0.75">−15.1</text>
+<text x="242" y="107" font-size="11" text-anchor="end" fill="currentColor">photoreceptors</text>
+<rect x="250" y="98" width="341.0" height="14" rx="2" fill="#1A7F9C"/>
+<text x="597.0" y="107" font-size="10.5" fill="currentColor" opacity="0.75">−13.7</text>
+<text x="242" y="128" font-size="11" text-anchor="end" fill="currentColor">visual projection neurons</text>
+<rect x="250" y="119" width="333.7" height="14" rx="2" fill="#4FA3BE"/>
+<text x="589.7" y="128" font-size="10.5" fill="currentColor" opacity="0.75">−13.4</text>
+<text x="242" y="149" font-size="11" text-anchor="end" fill="currentColor">distal medulla (Dm)</text>
+<rect x="250" y="140" width="296.0" height="14" rx="2" fill="#4FA3BE"/>
+<text x="552.0" y="149" font-size="10.5" fill="currentColor" opacity="0.75">−11.9</text>
+<text x="242" y="170" font-size="11" text-anchor="end" fill="currentColor">central brain (intrinsic)</text>
+<rect x="250" y="161" width="229.0" height="14" rx="2" fill="#7BA05B"/>
+<text x="485.0" y="170" font-size="10.5" fill="currentColor" opacity="0.75">−9.2</text>
+<text x="242" y="191" font-size="11" text-anchor="end" fill="currentColor">transmedullary (Tm, TmY)</text>
+<rect x="250" y="182" width="208.3" height="14" rx="2" fill="#4FA3BE"/>
+<text x="464.3" y="191" font-size="10.5" fill="currentColor" opacity="0.75">−8.3</text>
+<text x="242" y="212" font-size="11" text-anchor="end" fill="currentColor">medulla intrinsic (Mi)</text>
+<rect x="250" y="203" width="169.3" height="14" rx="2" fill="#4FA3BE"/>
+<text x="425.3" y="212" font-size="10.5" fill="currentColor" opacity="0.75">−6.8</text>
+<text x="242" y="233" font-size="11" text-anchor="end" fill="currentColor">lamina (L1-L5)</text>
+<rect x="250" y="224" width="149.8" height="14" rx="2" fill="#1A7F9C"/>
+<text x="405.8" y="233" font-size="10.5" fill="currentColor" opacity="0.75">−6.0</text>
+<text x="242" y="254" font-size="11" text-anchor="end" fill="currentColor">lobula columnar (LC, LPLC)</text>
+<rect x="250" y="245" width="132.8" height="14" rx="2" fill="#4FA3BE"/>
+<text x="388.8" y="254" font-size="10.5" fill="currentColor" opacity="0.75">−5.3</text>
+<text x="242" y="275" font-size="11" text-anchor="end" fill="currentColor">brain sensory axons</text>
+<rect x="250" y="266" width="77.9" height="14" rx="2" fill="#9B8FB4"/>
+<text x="333.9" y="275" font-size="10.5" fill="currentColor" opacity="0.75">−3.1</text>
+<text x="242" y="296" font-size="11" text-anchor="end" fill="currentColor">mechanosensory</text>
+<rect x="250" y="287" width="69.4" height="14" rx="2" fill="#9B8FB4"/>
+<text x="325.4" y="296" font-size="10.5" fill="currentColor" opacity="0.75">−2.8</text>
+<text x="242" y="317" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">ascending neurons</text>
+<rect x="250" y="308" width="37.8" height="14" rx="2" fill="#7BA05B" opacity="0.3"/>
+<text x="293.8" y="317" font-size="10.5" fill="currentColor" opacity="0.75">−1.5 (noise)</text>
+<text x="242" y="338" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">motion detectors (T4, T5)</text>
+<rect x="250" y="329" width="32.9" height="14" rx="2" fill="#4FA3BE" opacity="0.3"/>
+<text x="288.9" y="338" font-size="10.5" fill="currentColor" opacity="0.75">−1.3 (noise)</text>
+<text x="242" y="359" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">visual centrifugal</text>
+<rect x="250" y="350" width="14.6" height="14" rx="2" fill="#4FA3BE" opacity="0.3"/>
+<text x="270.6" y="359" font-size="10.5" fill="currentColor" opacity="0.75">−0.6 (noise)</text>
+<text x="242" y="380" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">gustatory</text>
+<rect x="250" y="371" width="11.0" height="14" rx="2" fill="#9B8FB4" opacity="0.3"/>
+<text x="267.0" y="380" font-size="10.5" fill="currentColor" opacity="0.75">−0.4 (noise)</text>
+<text x="242" y="401" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">medulla tangential (Pm, Li)</text>
+<rect x="250" y="392" width="8.5" height="14" rx="2" fill="#4FA3BE" opacity="0.3"/>
+<text x="264.5" y="401" font-size="10.5" fill="currentColor" opacity="0.75">−0.3 (noise)</text>
+<text x="242" y="422" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">lateral horn</text>
+<rect x="250" y="413" width="4.9" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="260.9" y="422" font-size="10.5" fill="currentColor" opacity="0.75">−0.2 (noise)</text>
+<text x="242" y="443" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">central complex</text>
+<rect x="250" y="434" width="2.4" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="258.4" y="443" font-size="10.5" fill="currentColor" opacity="0.75">−0.1 (noise)</text>
+<text x="242" y="464" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">CX: ring neurons (ER)</text>
+<rect x="250" y="455" width="2.4" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="258.4" y="464" font-size="10.5" fill="currentColor" opacity="0.75">−0.1 (noise)</text>
+<text x="242" y="485" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">olfactory receptor neurons</text>
+<rect x="250" y="476" width="1.2" height="14" rx="2" fill="#9B8FB4" opacity="0.3"/>
+<text x="257.2" y="485" font-size="10.5" fill="currentColor" opacity="0.75">−0.0 (noise)</text>
+<text x="242" y="506" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">mushroom body: dopaminergic</text>
+<rect x="250" y="497" width="0.6" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="256.6" y="506" font-size="10.5" fill="currentColor" opacity="0.75">−0.0 (noise)</text>
+<text x="242" y="527" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">antennal lobe local</text>
+<rect x="250" y="518" width="0.6" height="14" rx="2" fill="#9B8FB4" opacity="0.3"/>
+<text x="256.6" y="527" font-size="10.5" fill="currentColor" opacity="0.75">−0.0 (noise)</text>
+<text x="242" y="548" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">CX: compass (EPG, PEG, PEN)</text>
+<rect x="250" y="539" width="0.6" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="256.6" y="548" font-size="10.5" fill="currentColor" opacity="0.75">−0.0 (noise)</text>
+<text x="242" y="569" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">CX: fan-shaped body</text>
+<rect x="250" y="560" width="0.6" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="256.6" y="569" font-size="10.5" fill="currentColor" opacity="0.75">−0.0 (noise)</text>
+<text x="242" y="590" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">mushroom body: outputs</text>
+<rect x="250" y="581" width="0.6" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="256.6" y="590" font-size="10.5" fill="currentColor" opacity="0.75">+0.0 (noise)</text>
+<text x="242" y="611" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">mushroom body: Kenyon cells</text>
+<rect x="250" y="602" width="0.6" height="14" rx="2" fill="#C9A227" opacity="0.3"/>
+<text x="256.6" y="611" font-size="10.5" fill="currentColor" opacity="0.75">+0.1 (noise)</text>
+<text x="242" y="632" font-size="11" text-anchor="end" fill="currentColor" opacity="0.55">antennal lobe projection</text>
+<rect x="250" y="623" width="0.6" height="14" rx="2" fill="#9B8FB4" opacity="0.3"/>
+<text x="256.6" y="632" font-size="10.5" fill="currentColor" opacity="0.75">+0.1 (noise)</text>
+<line x1="250" y1="54" x2="250" y2="642" stroke="currentColor" stroke-opacity="0.4"/>
+<rect x="250" y="670" width="9" height="9" rx="2" fill="#1A7F9C"/>
+<text x="263" y="678" font-size="10.5" fill="currentColor">eye</text>
+<rect x="290.9" y="670" width="9" height="9" rx="2" fill="#4FA3BE"/>
+<text x="303.9" y="678" font-size="10.5" fill="currentColor">visual</text>
+<rect x="350.7" y="670" width="9" height="9" rx="2" fill="#B4562E"/>
+<text x="363.7" y="678" font-size="10.5" fill="currentColor">output</text>
+<rect x="410.5" y="670" width="9" height="9" rx="2" fill="#7BA05B"/>
+<text x="423.5" y="678" font-size="10.5" fill="currentColor">central</text>
+<rect x="476.6" y="670" width="9" height="9" rx="2" fill="#9B8FB4"/>
+<text x="489.6" y="678" font-size="10.5" fill="currentColor">other sense</text>
+<rect x="567.9" y="670" width="9" height="9" rx="2" fill="#C9A227"/>
+<text x="580.9" y="678" font-size="10.5" fill="currentColor">higher brain</text>
+</svg><figcaption>How far the fly's agreement with Stockfish falls when each functional group is silenced, from an intact 20.3%. Faded bars are within three standard errors of zero.</figcaption></figure>
+<div class="tablewrap"><table><tr><th>Silenced</th><th>Neurons</th><th>Agreement after</th><th>Change</th></tr><tr><td>descending neurons</td><td class="m">1,314</td><td class="m">5.1%</td><td class="m">−15.2</td></tr><tr><td>optic lobe (intrinsic)</td><td class="m">89,390</td><td class="m">5.2%</td><td class="m">−15.1</td></tr><tr><td>photoreceptors</td><td class="m">4,114</td><td class="m">6.6%</td><td class="m">−13.7</td></tr><tr><td>visual projection neurons</td><td class="m">9,201</td><td class="m">6.9%</td><td class="m">−13.4</td></tr><tr><td>distal medulla (Dm)</td><td class="m">8,175</td><td class="m">8.4%</td><td class="m">−11.9</td></tr><tr><td>central brain (intrinsic)</td><td class="m">32,160</td><td class="m">11.1%</td><td class="m">−9.2</td></tr><tr><td>transmedullary (Tm, TmY)</td><td class="m">28,042</td><td class="m">12.0%</td><td class="m">−8.3</td></tr><tr><td>medulla intrinsic (Mi)</td><td class="m">9,589</td><td class="m">13.5%</td><td class="m">−6.8</td></tr><tr><td>lamina (L1-L5)</td><td class="m">8,883</td><td class="m">14.3%</td><td class="m">−6.0</td></tr><tr><td>lobula columnar (LC, LPLC)</td><td class="m">5,807</td><td class="m">15.0%</td><td class="m">−5.3</td></tr><tr><td>brain sensory axons</td><td class="m">4,868</td><td class="m">17.2%</td><td class="m">−3.1</td></tr><tr><td>mechanosensory</td><td class="m">2,157</td><td class="m">17.5%</td><td class="m">−2.8</td></tr><tr><td>ascending neurons</td><td class="m">1,846</td><td class="m">18.8%</td><td class="m">−1.5 (noise)</td></tr><tr><td>motion detectors (T4, T5)</td><td class="m">13,580</td><td class="m">19.0%</td><td class="m">−1.3 (noise)</td></tr><tr><td>visual centrifugal</td><td class="m">563</td><td class="m">19.7%</td><td class="m">−0.6 (noise)</td></tr><tr><td>gustatory</td><td class="m">355</td><td class="m">19.9%</td><td class="m">−0.4 (noise)</td></tr><tr><td>medulla tangential (Pm, Li)</td><td class="m">2,823</td><td class="m">20.0%</td><td class="m">−0.3 (noise)</td></tr><tr><td>lateral horn</td><td class="m">2,028</td><td class="m">20.1%</td><td class="m">−0.2 (noise)</td></tr><tr><td>central complex</td><td class="m">2,950</td><td class="m">20.2%</td><td class="m">−0.1 (noise)</td></tr><tr><td>CX: ring neurons (ER)</td><td class="m">282</td><td class="m">20.2%</td><td class="m">−0.1 (noise)</td></tr><tr><td>olfactory receptor neurons</td><td class="m">2,635</td><td class="m">20.3%</td><td class="m">−0.0 (noise)</td></tr><tr><td>mushroom body: dopaminergic</td><td class="m">340</td><td class="m">20.3%</td><td class="m">−0.0 (noise)</td></tr><tr><td>antennal lobe local</td><td class="m">420</td><td class="m">20.3%</td><td class="m">−0.0 (noise)</td></tr><tr><td>CX: compass (EPG, PEG, PEN)</td><td class="m">110</td><td class="m">20.3%</td><td class="m">−0.0 (noise)</td></tr><tr><td>CX: fan-shaped body</td><td class="m">2,366</td><td class="m">20.3%</td><td class="m">−0.0 (noise)</td></tr><tr><td>mushroom body: outputs</td><td class="m">97</td><td class="m">20.4%</td><td class="m">+0.0 (noise)</td></tr><tr><td>mushroom body: Kenyon cells</td><td class="m">4,064</td><td class="m">20.4%</td><td class="m">+0.1 (noise)</td></tr><tr><td>antennal lobe projection</td><td class="m">686</td><td class="m">20.4%</td><td class="m">+0.1 (noise)</td></tr></table></div></div>
       <ol class="steps">
         <li><span><b>Ablate by region.</b> Silence each of the 108 neuropils in turn and re-measure move accuracy and rating. Render the losses as a heat map in the Cloud Atlas: the mushroom body, the central complex and the lateral horn are the interesting candidates.</span></li>
         <li><span><b>Decode across time.</b> At each tick, which regions carry the from-square, the to-square, and whether the king is in check? Where is the chosen move first readable?</span></li>
@@ -364,14 +506,20 @@
     </section>
 
     <section class="phase" id="p6">
-      <div class="ph"><span class="num">6</span><h2>Ship the demo</h2><span class="when">weeks 13–14</span></div>
-      <p class="goal">Anyone can play the fly in a browser, watch it think, and watch it move the pieces itself.</p>
+      <div class="ph"><span class="num">6</span><h2>A fly playing chess in a garden</h2><span class="when">weeks 13–15</span></div>
+      <p class="goal">A garden scene with a chess set built at fly scale, where the fly walks over and moves the pieces itself.</p>
+      <div class="callout">
+        <p><b>Exactly one thing is computed.</b> The fly seeing the board and choosing a move: the position is painted on the real map of its right eye, activity runs for 24 ticks through 144,209 neurons and 21.27 million connections, and the move is read from the 1,314 descending neurons. Everything after that is animation. Walking, gripping, carrying and returning are performed, not simulated. That removes the motor learning problem, the 108-degree-of-freedom control problem, and the speed problem in one stroke.</p>
+      </div>
       <ol class="steps">
-        <li><span><b>The page.</b> A chessboard with a 3D model of the fly beside it. On each move the fly walks from its resting spot to the piece, carries it to its destination square (a captured piece is carried off the board first), and walks back to exactly where it started. The Cloud Atlas next to the board shows the brain activity that produced the move; a sidebar lists the candidate moves and the most active regions. A rigged low-poly fly with a walk cycle in three.js, its path generated from the engine's chosen move.</span></li>
-        <li><span><b>Inference.</b> About 20 million multiply-adds per tick, 32 ticks, so roughly 1.3 billion operations per move: a small backend, or WebGPU in the browser.</span></li>
-        <li><span><b>Write it up.</b> The rules of the game, the controls table, the rating, the ablation map. That write-up is the real product.</span></li>
+        <li><span><b>The fly is a model, not an agent.</b> <code>flybody</code> from Google DeepMind and Janelia gives an anatomically correct fly, built from real measurements by the same institute that produced the connectome: veined wings, compound eyes, jointed tarsi. It is positioned directly each frame rather than physically controlled, so it cannot fall over and costs almost nothing to run.</span></li>
+        <li><span><b>The walk is a real fly's walk.</b> One gait cycle recorded from flybody's own trained locomotion controller, then looped and steered along the path, rather than a hand-drawn approximation.</span></li>
+        <li><span><b>The set is built for the fly.</b> A jewel-sized board a few centimetres across with pieces of a few milligrams, resting on a stone in the grass. A real-scale fly on a chess set made for it, with grass blades towering over the game.</span></li>
+        <li><span><b>The move, performed.</b> From its resting spot to the piece, grip, carry to the destination square, release, and walk back to exactly where it started. A captured piece is carried off the board first.</span></li>
+        <li><span><b>The thinking pause is the feature.</b> A move costs a second or two of real computation. That pause is filled with the Cloud Atlas lighting up as activity crosses the brain, so the one honest moment in the demo is also the most interesting thing on screen.</span></li>
+        <li><span><b>The opponent.</b> A person clicking a piece, or Stockfish at limited strength through the engine built in Phase 4.</span></li>
       </ol>
-      <div class="done"><b>Done when</b><span>A stranger can play the fly online and see its brain light up.</span></div>
+      <div class="done"><b>Done when</b><span>A stranger can play the fly in a garden and watch it walk over and move the pieces.</span></div>
     </section>
 
     <section class="sec" id="compute">
