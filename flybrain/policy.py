@@ -122,35 +122,29 @@ class FlyPolicy(nn.Module):
         scale = 1.0 / (dn.std(0) + 1e-12)
         self.dn_scale.copy_(torch.minimum(scale, 10.0 * scale.median()))          # cap: a silent neuron must not become a noise amplifier
 
-    def run_full(self, I):
-        """I: [N, B] input currents -> every neuron's rate [N, B] at the final tick."""
+    def run_full(self, I, silence=None):
+        """I: [N, B] input currents -> every neuron's rate [N, B] at the final tick.
+        `silence` is an optional [N, 1] mask of 0/1 applied to every neuron's rate each tick, so a
+        silenced neuron neither responds to its input nor passes anything on."""
         r = torch.zeros(self.N, I.shape[1], device=self.device)
         g_out, g_in = torch.exp(self.log_gain_out), torch.exp(self.log_gain_in)
         for _ in range(self.ticks):
+            if silence is not None: r = r * silence
             pre = g_out * r
             if self.edge_gains:
                 syn = EdgeSpMM.apply(self.base_val * torch.exp(self.log_edge_gain), pre, self.crow, self.col, self.crowT, self.colT, self.perm, self.pattern, self.N)
             else:
                 syn = SpMM.apply(self.W, self.WT, pre)
             r = r + self.k * (torch.tanh(g_in * syn + I + self.bias) - r)
+        if silence is not None: r = r * silence
         return r
 
-    def run(self, I):
+    def run(self, I, silence=None):
         """I: [N, B] input currents -> descending-neuron rates [B, n_dn]."""
-        r = torch.zeros(self.N, I.shape[1], device=self.device)
-        g_out, g_in = torch.exp(self.log_gain_out), torch.exp(self.log_gain_in)
-        for _ in range(self.ticks):
-            pre = g_out * r
-            if self.edge_gains:
-                syn = EdgeSpMM.apply(self.base_val * torch.exp(self.log_edge_gain), pre, self.crow, self.col, self.crowT, self.colT, self.perm, self.pattern, self.N)
-            else:
-                syn = SpMM.apply(self.W, self.WT, pre)
-            x = g_in * syn + I + self.bias
-            r = r + self.k * (torch.tanh(x) - r)
-        return r[self.dn].T
+        return self.run_full(I, silence)[self.dn].T
 
-    def forward(self, I):
-        dn = (self.run(I) - self.dn_mean) * self.dn_scale
+    def forward(self, I, silence=None):
+        dn = (self.run(I, silence) - self.dn_mean) * self.dn_scale
         out = self.readout(dn)
         return out[:, :N_MOVES], out[:, N_MOVES:], self.value(dn), dn
 
