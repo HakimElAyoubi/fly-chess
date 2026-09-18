@@ -1,13 +1,13 @@
 {
- "ablation": {
-  "label": "ablation",
-  "done": 12,
-  "total": 12,
-  "elapsed_min": 2.4664841969807942,
-  "eta_min": 0.0,
-  "pid": 77015,
-  "ts": 1789733324.863314,
-  "finished": true,
-  "line": "ablation                 [\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588] 100.0% \u00b7 12/12 \u00b7 2.5 min elapsed \u00b7 0.0 min left"
+ "demo": {
+  "label": "demo: playing",
+  "done": 2,
+  "total": 16,
+  "elapsed_min": 0.13753835360209146,
+  "eta_min": 0.9627684752146403,
+  "pid": 82050,
+  "ts": 1789736761.0913532,
+  "finished": false,
+  "line": "demo: playing            [\u2588\u2588\u2588\u2588\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591]  12.5% \u00b7 2/16 \u00b7 0.1 min elapsed \u00b7 1.0 min left"
  }
 }
