@@ -22,3 +22,5 @@ data/.*
 data/*.mp4
 data/progress.json
 data/*.log
+data/rl_*/
+data/rl_*.json
