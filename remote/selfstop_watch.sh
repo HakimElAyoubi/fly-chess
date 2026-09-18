@@ -9,7 +9,7 @@ log() { echo "$(date -u +%H:%M:%S) $*" >> selfstop.log; }
 log "watchdog armed on $LOG, idle threshold ${IDLE}m"
 sleep 300
 while :; do
-  BUSY=$(pgrep -f "torchrun|flybrain\.(train|label|data|probe)" | wc -l)
+  BUSY=$(pgrep -f "torchrun|flybrain\.(train|label|data|probe|rl)" | wc -l)
   AGE=$(( ($(date +%s) - $(stat -c %Y "$LOG" 2>/dev/null || date +%s)) / 60 ))
   if [ "$BUSY" -eq 0 ] && [ "$AGE" -ge "$IDLE" ]; then break; fi
   sleep 60
