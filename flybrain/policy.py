@@ -139,6 +139,23 @@ class FlyPolicy(nn.Module):
         if silence is not None: r = r * silence
         return r
 
+    @torch.no_grad()
+    def run_trace(self, I, every=3):
+        """Every neuron's rate at every `every`-th tick, for showing the brain thinking."""
+        r = torch.zeros(self.N, I.shape[1], device=self.device)
+        g_out, g_in = torch.exp(self.log_gain_out), torch.exp(self.log_gain_in)
+        snaps = []
+        for t in range(self.ticks):
+            pre = g_out * r
+            if self.edge_gains:
+                syn = EdgeSpMM.apply(self.base_val * torch.exp(self.log_edge_gain), pre, self.crow, self.col, self.crowT, self.colT, self.perm, self.pattern, self.N)
+            else:
+                syn = SpMM.apply(self.W, self.WT, pre)
+            r = r + self.k * (torch.tanh(g_in * syn + I + self.bias) - r)
+            if (t + 1) % every == 0 or t == self.ticks - 1:
+                snaps.append(r[:, 0].detach().cpu().numpy().copy())
+        return snaps
+
     def run(self, I, silence=None):
         """I: [N, B] input currents -> descending-neuron rates [B, n_dn]."""
         return self.run_full(I, silence)[self.dn].T
