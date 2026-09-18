@@ -1,0 +1,13 @@
+# GitHub's language statistics counted this repository as 98% HTML, because viewer.html is a
+# 10 MB file with the whole point cloud baked into it and the Python that produces everything is
+# 210 KB. These files are build products, not source: viewer.html is written by build_viewer.py
+# from viewer_template.html and data/cloud.json, plan.html by render_*.py, and everything under
+# data/ by the pipeline. Marking them as such makes the language bar describe the work.
+
+viewer.html      linguist-generated=true
+plan.html        linguist-generated=true
+progress.html    linguist-generated=true
+data/**          linguist-generated=true
+
+# the hand-written source the viewer is built from should still count
+viewer_template.html linguist-generated=false

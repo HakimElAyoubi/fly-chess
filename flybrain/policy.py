@@ -64,6 +64,8 @@ class EdgeSpMM(torch.autograd.Function):
         v, r, crow, col, crowT, colT, perm = ctx.saved_tensors
         WT = torch.sparse_csr_tensor(crowT, colT, v[perm], size=(ctx.N, ctx.N))
         grad_r = torch.sparse.mm(WT, g)
+        if not ctx.needs_input_grad[0]:                                      # edge gains frozen (RL fine-tuning)
+            return None, grad_r, None, None, None, None, None, None, None
         g = g.contiguous(); rT = r.T.contiguous()
         try:
             grad_v = torch.sparse.sampled_addmm(ctx.pattern, g, rT).values()
