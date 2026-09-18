@@ -50,7 +50,7 @@ def elo_from_score(s):
 
 def run(a):
     rng = np.random.default_rng(a.seed)
-    fly = FlyEngine(a.weights, a.temperature, avoid_repetition=not a.allow_repetition)
+    fly = FlyEngine(a.weights, a.temperature, device=a.device, avoid_repetition=not a.allow_repetition)
     sf = None
     if a.opponent == "stockfish":
         sf = chess.engine.SimpleEngine.popen_uci(a.stockfish)
@@ -135,6 +135,7 @@ if __name__ == "__main__":
     ap.add_argument("--temperature", type=float, default=0.0); ap.add_argument("--opening-plies", type=int, default=4)
     ap.add_argument("--max-plies", type=int, default=300); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default=None); ap.add_argument("--allow-repetition", action="store_true")
+    ap.add_argument("--device", default="cpu")
     a = ap.parse_args()
     a.tag = a.tag or (a.opponent if a.opponent in ("random", "greedy") else f"stockfish_depth{a.sf_depth}" if a.sf_depth else f"stockfish{a.elo}")
     run(a)

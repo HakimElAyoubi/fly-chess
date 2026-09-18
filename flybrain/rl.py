@@ -246,7 +246,13 @@ def main():
                "value_mean": float(val.mean()), "score_recent": float(np.mean(recent)) if recent else None,
                "updates": len(stats), "early_stop": stop, "elapsed_min": (time.time() - t0) / 60, **m}
         history.append(row); log.write(json.dumps(row) + "\n"); log.flush()
-        progress(it, a.iters, t0, f"rl {a.tag}: score {row['score_recent'] or 0:.3f}")
+        # under a wall-clock budget the honest bar counts minutes, not iterations: the iteration
+        # cap is deliberately set far beyond what the budget will reach
+        if a.hours > 0:
+            progress(min(int(row["elapsed_min"]), int(a.hours * 60)), int(a.hours * 60), t0,
+                     f"rl {a.tag}: iter {it}, score {row['score_recent'] or 0:.3f} (min)")
+        else:
+            progress(it, a.iters, t0, f"rl {a.tag}: score {row['score_recent'] or 0:.3f}")
         print(f"iter {it:4d}  reward {row['reward_mean']:+.4f}  score(last {len(recent)}) "
               f"{row['score_recent'] or float('nan'):.3f}  entropy {m['entropy']:.2f}  klref {m['kl_ref']:.4f}  "
               f"klold {m['kl_old']:+.4f}  clip {m['clipped']:.2f}  ({row['elapsed_min']:.1f} min)", flush=True)
