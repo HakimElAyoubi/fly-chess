@@ -1,0 +1,28 @@
+{
+ "opponent": "random",
+ "games": 4,
+ "fly_temperature": 0.0,
+ "wins": 1,
+ "draws": 3,
+ "losses": 0,
+ "score": 0.625,
+ "score_95ci": [
+  0.38,
+  0.87
+ ],
+ "elo_diff": 88.73949984654253,
+ "elo_diff_95ci": [
+  -85.04323715257752,
+  330.2303601247128
+ ],
+ "fly_elo_estimate": null,
+ "fly_elo_95ci": null,
+ "mean_plies": 148.5,
+ "terminations": {
+  "checkmate": 1,
+  "repetition": 3
+ },
+ "score_as_white": 0.5,
+ "score_as_black": 0.75,
+ "minutes": 7.560912350813548
+}
