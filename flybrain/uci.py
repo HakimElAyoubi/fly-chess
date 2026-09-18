@@ -27,7 +27,8 @@ class FlyEngine:
         self.model = FlyPolicy(device=device, ticks=24, edge_gains=edge)
         load_into(self.model, ck["model"], weights, strict_report=False)
         self.model.eval()
-        self.step = ck.get("step")
+        # a supervised checkpoint counts steps, one from reinforcement learning counts iterations
+        self.step = ck.get("step") if ck.get("step") is not None else ck.get("iter")
         W, meta = load(); self.eye = Eye(W, meta)
         self.temperature = temperature
         self.device = device

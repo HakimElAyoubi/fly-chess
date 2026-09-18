@@ -45,7 +45,7 @@ def run(weights):
     g = ck["model"]["log_edge_gain"].exp().numpy()
     pre, post, syn = edge_table(W, meta)
     assert len(g) == len(pre), f"{len(g)} gains but {len(pre)} edges"
-    out = {"weights": weights, "step": ck.get("step"), "edges": int(len(g))}
+    out = {"weights": weights, "step": ck.get("step", ck.get("iter")), "edges": int(len(g))}
 
     q = np.percentile(g, [1, 5, 25, 50, 75, 95, 99])
     out["gain_quantiles"] = {f"p{p}": float(v) for p, v in zip([1, 5, 25, 50, 75, 95, 99], q)}
