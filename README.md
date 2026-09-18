@@ -18,7 +18,7 @@ The full plan is in [PLAN.md](PLAN.md) (six phases). Status:
 | 2 | Show it the board | done: the medulla reads 100.0% of squares |
 | 3 | Teach it the rules | in progress: 79.3% legal, 24.0% top-1 after 6.2 M positions |
 | 4 | Make it play | in progress: UCI engine built, rating matches running |
-| 5 | Look inside | |
+| 5 | Look inside | done: the chess lives in the visual pathway, the higher brain contributes nothing |
 | 6 | The demo: a fly-scale chess set in a garden, the fly walks over and moves the pieces | |
 
 ## What is here

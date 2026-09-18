@@ -1,13 +1,13 @@
 """Phase 5, part 1: where in the brain does the chess happen?
 
-Silence one neuropil at a time and re-measure how well the fly picks Stockfish's move. A region
+Silence one functional group at a time and re-measure how well the fly picks Stockfish's move. A region
 whose removal costs nothing was not being used; a region whose removal is catastrophic is load
 bearing. The result is a map over the whole brain, which is also what the demo's brain inset
 should highlight.
 
-A neuron belongs to a neuropil if most of its synapses are there, taken from the dataset's own
-per-region synapse counts. Silencing means clamping those neurons' firing rate to zero at every
-tick, so they neither respond nor pass anything on.
+Groups come from the dataset's own annotations (superclass, class and cell type), because the
+per-neuron neuropil breakdown is not in the public flat files. Silencing means clamping those
+neurons' firing rate to zero at every tick, so they neither respond nor pass anything on.
 
     python -m flybrain.ablate --weights data/train_gpu/model_step11600.pt --n 2048
 
@@ -19,7 +19,6 @@ import json
 import time
 import numpy as np
 import pandas as pd
-import pyarrow.feather as pf
 import torch
 import chess
 from .graph import load, DATA
@@ -27,26 +26,64 @@ from .eye import Eye
 from .policy import FlyPolicy, variant_of, load_into, legal_mask, move_index
 from .progress import write as progress
 
-BODY_STATS = DATA / "body-stats-male-cns-v1.0-minconf-0.5.feather"
+# Functional groups, from the dataset's own annotations. Neuropil membership is not in the public
+# flat files (it lives in the neuprint database), and these groups answer the question better
+# anyway: "the mushroom body" is Kenyon cells plus their outputs and dopaminergic inputs, which is
+# a circuit, not a box. Groups deliberately overlap; each is reported on its own.
+GROUPS = {
+    # coarse anatomy
+    "optic lobe (intrinsic)":      {"superclass": ["ol_intrinsic"]},
+    "central brain (intrinsic)":   {"superclass": ["cb_intrinsic"]},
+    "visual projection neurons":   {"superclass": ["visual_projection"]},
+    "visual centrifugal":          {"superclass": ["visual_centrifugal"]},
+    "descending neurons":          {"superclass": ["descending_neuron"]},
+    "ascending neurons":           {"superclass": ["ascending_neuron"]},
+    "photoreceptors":              {"superclass": ["ol_sensory"]},
+    "brain sensory axons":         {"superclass": ["cb_sensory"]},
+    # circuits the plan named as candidates
+    "mushroom body: Kenyon cells": {"class": ["Kenyon_Cell"]},
+    "mushroom body: outputs":      {"class": ["MBON"]},
+    "mushroom body: dopaminergic": {"class": ["DAN"]},
+    "central complex":             {"class": ["CX"]},
+    "lateral horn":                {"type": r"^LH"},
+    # senses
+    "olfactory receptor neurons":  {"type": r"^ORN"},
+    "antennal lobe projection":    {"class": ["ALPN"]},
+    "antennal lobe local":         {"class": ["ALLN"]},
+    "gustatory":                   {"class": ["gustatory"]},
+    "mechanosensory":              {"class": ["mechanosensory", "mechanosensory_tactile", "mechanosensory_proprioceptive"]},
+    # the visual pathway, stage by stage
+    "lamina (L1-L5)":              {"type": r"^L[1-5]$"},
+    "medulla intrinsic (Mi)":      {"type": r"^Mi\d"},
+    "distal medulla (Dm)":         {"type": r"^Dm\d"},
+    "transmedullary (Tm, TmY)":    {"type": r"^Tm"},
+    "motion detectors (T4, T5)":   {"type": r"^T[45][a-d]?$"},
+    "lobula plate tangential":     {"type": r"^(HS|VS|H1|H2|CH|VST|VSm)"},
+    "lobula columnar (LC, LPLC)":  {"type": r"^(LC|LPLC|LLPC|LPC)\d"},
+    "medulla tangential (Pm, Li)": {"type": r"^(Pm|Li)\d"},
+    "the wide-field cell CT1":     {"type": r"^CT1$"},
+    # the central complex, broken apart
+    "CX: ring neurons (ER)":       {"type": r"^ER\d"},
+    "CX: compass (EPG, PEG, PEN)": {"type": r"^(EPG|PEG|PEN)"},
+    "CX: fan-shaped body":         {"type": r"^(FB|FC|FS|FR|PFN|PFL|PFG|hDelta|vDelta)"},
+    "CX: protocerebral bridge":    {"type": r"^(PB|Delta7)"},
+}
 
 
-def neuropil_of_neuron(meta, min_synapses=50):
-    """Assign each neuron to the neuropil holding most of its synapses.
-    Returns a Series of region names indexed by the model's neuron index."""
-    cols = pf.read_table(BODY_STATS).schema.names
-    roi_cols = [c for c in cols if c.endswith("_pre") or c.endswith("_post")]
-    keep = ["body"] + roi_cols if "body" in cols else roi_cols
-    t = pf.read_table(BODY_STATS, columns=keep).to_pandas()
-    body_col = "body" if "body" in t.columns else t.columns[0]
-    regions = sorted({c.rsplit("_", 1)[0] for c in roi_cols})
-    tot = pd.DataFrame({r: t.get(f"{r}_pre", 0) + t.get(f"{r}_post", 0) for r in regions}, index=t[body_col])
-    tot = tot.loc[tot.index.intersection(meta.bodyId.values)]
-    best = tot.idxmax(axis=1); total = tot.max(axis=1)
-    best[total < min_synapses] = "unassigned"
-    s = pd.Series("unassigned", index=meta.index)
-    m = meta.bodyId.map(best)
-    s[m.notna().to_numpy()] = m.dropna().to_numpy()
-    return s
+def group_masks(meta):
+    """One boolean mask per functional group."""
+    ty = meta.type.fillna("")
+    out = {}
+    for name, spec in GROUPS.items():
+        m = np.zeros(len(meta), bool)
+        if "superclass" in spec:
+            m |= meta.superclass.isin(spec["superclass"]).to_numpy()
+        if "class" in spec:
+            m |= meta["class"].isin(spec["class"]).to_numpy()
+        if "type" in spec:
+            m |= ty.str.match(spec["type"]).to_numpy()
+        out[name] = m
+    return out
 
 
 @torch.no_grad()
@@ -75,27 +112,26 @@ def run(weights, positions, n_positions, device, batch, min_neurons=50):
     model = FlyPolicy(device=device, ticks=24, edge_gains=edge)
     load_into(model, ck["model"], weights); model.eval()
     W, meta = load(); eye = Eye(W, meta)
-    region = neuropil_of_neuron(meta)
-    counts = region.value_counts()
-    targets = [r for r in counts.index if r != "unassigned" and counts[r] >= min_neurons]
-    print(f"{len(targets)} neuropils with at least {min_neurons} neurons; "
-          f"{int(counts.get('unassigned', 0))} neurons unassigned", flush=True)
+    masks = {k: v for k, v in group_masks(meta).items() if v.sum() >= min_neurons}
+    targets = list(masks)
+    print(f"{len(targets)} functional groups with at least {min_neurons} neurons", flush=True)
+    for k in targets: print(f"    {k:30s} {int(masks[k].sum()):6d} neurons", flush=True)
     recs = [json.loads(l) for _, l in zip(range(n_positions), gzip.open(positions, "rt"))]
 
     base_top1, base_legal = score(model, eye, recs, batch, None, device)
     print(f"intact: top1 {base_top1:.4f}  legal {base_legal:.4f}", flush=True)
-    out = {"weights": weights, "n_positions": len(recs), "intact": {"top1": base_top1, "legal": base_legal}, "regions": {}}
+    out = {"weights": weights, "n_positions": len(recs), "intact": {"top1": base_top1, "legal": base_legal}, "groups": {}}
     t0 = time.time()
     for i, r in enumerate(targets, 1):
-        sil = (region == r).to_numpy()
+        sil = masks[r]
         t1, lg = score(model, eye, recs, batch, sil, device)
-        out["regions"][r] = {"neurons": int(sil.sum()), "top1": t1, "legal": lg,
+        out["groups"][r] = {"neurons": int(sil.sum()), "top1": t1, "legal": lg,
                              "top1_drop": base_top1 - t1, "legal_drop": base_legal - lg}
         progress(i, len(targets), t0, "ablation")
         print(f"  {r:22s} {int(sil.sum()):6d} neurons silenced -> top1 {t1:.4f} ({t1-base_top1:+.4f})  legal {lg:.4f} ({lg-base_legal:+.4f})", flush=True)
         json.dump(out, open(DATA / "ablation.json", "w"), indent=1)
-    worst = sorted(out["regions"].items(), key=lambda kv: -kv[1]["top1_drop"])[:8]
-    print("\nmost load-bearing regions:")
+    worst = sorted(out["groups"].items(), key=lambda kv: -kv[1]["top1_drop"])[:8]
+    print("\nmost load-bearing groups:")
     for k, v in worst:
         print(f"  {k:22s} top1 falls {100*v['top1_drop']:5.2f} points  ({v['neurons']} neurons)")
     return out
