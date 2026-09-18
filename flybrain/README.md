@@ -301,6 +301,42 @@ That is a real answer to the question Phase 5 was designed to ask. The chess abi
 is lives entirely in the visual system, and the parts of the fly's brain that make it clever are
 not involved.
 
+## Phase 6: the demo (18 Sep 2026)
+
+**The garden** (`flybrain/scene.py`). A MuJoCo scene in centimetres, because flybody's fly is real
+size: 3.4 mm long. The chess set is built to it — a 3.2 mm square, a 2.6 cm board, the tallest
+piece under 2.5 mm — on a mossy stone in a lawn. Around it, at the scale the fly would see them:
+grass in tufts that lean away from the stone, daisies, buttercups, poppies and cornflowers on
+stems, a few mushrooms, pebbles and dew. On the skyline, trees whose colour is blended toward the
+sky with distance, bushes, clouds, and the sun low over the far side of the board with the light
+coming from it. The board itself is a stepped walnut frame with a maple inlay line and grained
+squares; every piece stands on a felt disc and is turned from primitives — the knights have a
+neck, a head, ears and a mane, the bishops a mitre with its slit, the queens a crown of six
+beads, the kings a cross. 7,190 geoms; about 0.7 s a frame at 1280 × 1080.
+
+Two things had to be learned about the renderer. MuJoCo's fog applies to the skybox, which
+flattens the sky to one colour, so aerial perspective is done by hand per tree. And the fly
+model's own three tracking lights blacken every far emissive geom, so the scene includes a copy
+of the model without them.
+
+**The panel** (`flybrain/panel.py`). Beside the garden, three things the demo is actually about.
+*The brain*: the 106 neuropils of the head as a ghost map, coloured by region, with every neuron's
+activity lit on top of it as the network runs — amber above rest, blue below — the descending
+neurons on their own scale so the readout can be seen, and the lobe that receives the board
+labelled. *The board and the retina*: the position as a diagram, and the same position as the
+892 columns of the right eye receive it, white pieces on the R7 channel and black on R8. *What
+the descending neurons argued for*: the three moves the readout gave most weight to, and which it
+chose. Drawn at one design size and scaled, so drafts at any resolution keep their layout.
+
+**The film** (`flybrain/demo.py`). A title, the garden revealed in a slow orbit, then the game:
+for each of the fly's first moves, the brain lights up tick by tick while it thinks, then it walks
+from its resting spot to the piece, carries it to its square, and walks home; a captured piece is
+carried off the board first. Stockfish's pieces glide across on their own. After the animated
+opening, the rest of the game is fast-forwarded at a few plies a second to the real result, which
+the end card states. `--save-game` pickles the played game so the film can be re-rendered without
+replaying it; `--replay` renders a saved one. The game is played by exactly the same code as the
+engine and the matches; nothing in the demo touches the model.
+
 ## Phase 7: reinforcement learning (18 Sep 2026)
 
 Every phase before this taught the fly by imitation. It was shown a position, told which move a

@@ -3,18 +3,18 @@
 Plays a real game with the real brain, then animates it. For each move the fly walks from its
 resting spot to the piece, carries it to its destination, and walks back to exactly where it
 started; a captured piece is carried off the board first. Beside the board, the fly's own brain
-lights up with the activity that produced the move.
+lights up with the activity that produced the move, the board is shown as its eye receives it,
+and the moves its descending neurons argued for are listed.
 
 Nothing is physically simulated. The fly and the pieces are placed directly each frame. The only
 computation is the brain choosing the move.
 
-    python -m flybrain.demo --moves 12 --out data/fly_chess.mp4
-    python -m flybrain.demo --moves 6 --width 960 --height 600 --fps 24   # quicker draft
+    python -m flybrain.demo --moves 16 --out data/fly_chess.mp4 --save-game data/demo_game.pkl
+    python -m flybrain.demo --replay data/demo_game.pkl --width 960 --height 540 --fps 24   # re-render only
 """
 import argparse
-import base64
-import json
 import math
+import pickle
 import time
 from pathlib import Path
 import numpy as np
@@ -27,6 +27,7 @@ from .graph import load, DATA
 from .eye import Eye
 from .policy import FlyPolicy, variant_of, load_into, legal_mask, PROMO_INV
 from .scene import build, write, SQUARE, BOARD, THICK, RIM, square_xy, FLYBODY
+from .panel import Panel, title_card, end_card
 from .progress import write as progress
 
 BOARD_TOP = 2 * THICK
@@ -144,76 +145,6 @@ def segment_frames(segs, fps):
     return out
 
 
-# ----------------------------------------------------------------------------- the brain panel
-class BrainPanel:
-    """The brain itself, lit by its rates, with the fly's actual move candidates underneath."""
-
-    def __init__(self, meta, w=380, h=470):
-        cloud = json.load(open(DATA / "cloud.json"))
-        pos = np.frombuffer(base64.b64decode(cloud["soma"]["pos"]), np.int16).astype(np.float32).reshape(-1, 3) * 0.1
-        self.w, self.h = w, h
-        self.brain_h = int(h * 0.52)
-        self.soma = meta.soma_index.to_numpy()
-        self.has = self.soma >= 0
-        self.idx = self.soma[self.has]
-        # scale to the neurons this model actually contains (the brain), not the whole nervous system
-        own = pos[self.idx]
-        xy = np.stack([own[:, 0], -own[:, 1]], 1)
-        lo, hi = xy.min(0), xy.max(0)
-        pad_x, pad_top, pad_bot = 18, 62, 16
-        sc = min((w - 2 * pad_x) / (hi[0] - lo[0]), (self.brain_h - pad_top - pad_bot) / (hi[1] - lo[1]))
-        span = (hi - lo) * sc
-        off = np.array([pad_x + ((w - 2 * pad_x) - span[0]) / 2,
-                        pad_top + ((self.brain_h - pad_top - pad_bot) - span[1]) / 2])
-        self.px = np.zeros((len(pos), 2), np.int32)
-        self.px[self.idx] = ((xy - lo) * sc + off).astype(np.int32)
-        self.px[:, 0] = np.clip(self.px[:, 0], 1, w - 3); self.px[:, 1] = np.clip(self.px[:, 1], 1, self.brain_h - 3)
-        # a dim ghost of every neuron, so the lit parts are seen inside the whole brain
-        self.ghost = np.zeros((h, w, 3), np.uint8); self.ghost[:, :] = (10, 12, 17)
-        gx, gy = self.px[self.idx, 0], self.px[self.idx, 1]
-        np.maximum.at(self.ghost, (gy, gx), np.array([23, 26, 34], np.uint8))
-        np.maximum.at(self.ghost, (gy + 1, gx), np.array([17, 19, 26], np.uint8))
-        try:
-            self.font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 17)
-            self.mid = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 14)
-            self.small = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 12)
-        except OSError:
-            self.font = self.mid = self.small = ImageFont.load_default()
-
-    def draw(self, rates, caption="", dim=1.0, candidates=None, header=""):
-        arr = self.ghost.copy()
-        if rates is not None:
-            v = rates[self.has]
-            peak = float(np.abs(v).max()) or 1.0
-            live = np.flatnonzero(np.abs(v) > 0.015 * peak)
-            if len(live):
-                a = np.clip(np.abs(v[live]) / peak, 0, 1) ** 0.5 * dim
-                warm = v[live] > 0
-                col = np.where(warm[:, None], np.array([252, 196, 78]), np.array([96, 172, 236]))
-                col = (col * a[:, None]).astype(np.uint8)
-                x, y = self.px[self.idx[live], 0], self.px[self.idx[live], 1]
-                for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                    np.maximum.at(arr, (y + dy, x + dx), col)
-        img = Image.fromarray(arr)
-        dr = ImageDraw.Draw(img)
-        dr.text((18, 14), "the fly's brain", font=self.font, fill=(233, 230, 221))
-        dr.text((18, 36), "144,209 neurons · the board is shown to the right eye", font=self.small, fill=(120, 126, 140))
-        y = self.brain_h + 4
-        dr.line([(18, y), (self.w - 18, y)], fill=(40, 44, 54)); y += 16
-        dr.text((18, y), header or "", font=self.mid, fill=(233, 230, 221)); y += 26
-        dr.text((18, y), caption, font=self.small, fill=(150, 154, 165)); y += 24
-        if candidates:
-            dr.text((18, y), "what the descending neurons wanted", font=self.small, fill=(120, 126, 140)); y += 20
-            for san, p in candidates:
-                bar = int((self.w - 120) * min(1.0, p / max(1e-6, candidates[0][1])))
-                dr.rectangle([18, y + 3, 18 + bar, y + 12], fill=(60, 80, 96))
-                dr.text((18, y), f"{san}", font=self.mid, fill=(233, 230, 221))
-                dr.text((self.w - 78, y), f"{100*p:5.1f}%", font=self.small, fill=(150, 154, 165))
-                y += 22
-        dr.text((18, self.h - 22), "amber above rest · blue below", font=self.small, fill=(90, 94, 105))
-        return img
-
-
 # ----------------------------------------------------------------------------- the game
 def play(n_moves, weights, stockfish, elo, device, seed):
     edge, ck = variant_of(weights, device)
@@ -267,19 +198,18 @@ def play(n_moves, weights, stockfish, elo, device, seed):
     return record, board
 
 
-def render(record, out, width, height, fps, device):
+def render(record, final, out, width, height, fps, device, elo=1320, animate=12):
     board0 = record[0]["board"]
     write(board=board0)                                       # scene XML for the starting position
     m = mujoco.MjModel.from_xml_path(str(FLYBODY / "fly_chess_scene.xml"))
     d = mujoco.MjData(m)
-    W, meta = load()
+    W, meta = load(); eye = Eye(W, meta)
     anim = Animator(m, d)
-    panel = BrainPanel(meta, w=int(width * 0.30), h=height)
+    panel = Panel(meta, eye, w=int(width / 3), h=height)
     view_w = width - panel.w
     r = mujoco.Renderer(m, height=height, width=view_w)
     cam = mujoco.MjvCamera(); mujoco.mjv_defaultFreeCamera(m, cam)
 
-    # which scene body currently holds which square
     piece_at = {sq: f"p{sq}" for sq in board0.piece_map()}
     spares = [f"spare{i}" for i in range(4)]
     for sq, name in piece_at.items():
@@ -292,75 +222,146 @@ def render(record, out, width, height, fps, device):
     import imageio.v2 as imageio
     wr = imageio.get_writer(out, fps=fps, quality=8, macro_block_size=None)
     t0 = time.time(); total = len(record); frames = 0
+    foot_sub = f"White: the fly · Black: Stockfish {elo}"
+    base_look = np.array([-0.05, -0.10, 0.14])
 
-    def shot(caption, rates, focus=None, close=0.0, dim=1.0, cands=None, header=""):
+    def frame_3d(az, el, dist, look):
+        cam.lookat[:] = look; cam.distance = dist; cam.azimuth = az; cam.elevation = el
+        anim.sync(); r.update_scene(d, cam)
+        return Image.fromarray(r.render())
+
+    def emit(img):
         nonlocal frames
-        base = np.array([-0.05, -0.10, 0.14])
-        if focus is not None:
-            tgt = np.array([focus[0], focus[1], BOARD_TOP + 0.10])
-            cam.lookat[:] = base + (tgt - base) * close
-        else:
-            cam.lookat[:] = base
-        cam.distance = 3.9 - 1.5 * close
-        anim.sync()
-        r.update_scene(d, cam)
-        img = Image.fromarray(r.render())
-        full = Image.new("RGB", (width, height), (10, 12, 17))
-        full.paste(img, (0, 0)); full.paste(panel.draw(rates, caption, dim, cands, header), (view_w, 0))
-        wr.append_data(np.asarray(full)); frames += 1
+        wr.append_data(np.asarray(img)); frames += 1
 
+    def shot(state, az, el, dist, look=None, fade=1.0):
+        full = Image.new("RGB", (width, height), (11, 13, 19))
+        view = frame_3d(az, el, dist, base_look if look is None else look)
+        if fade < 1.0:
+            view = Image.blend(Image.new("RGB", view.size, (11, 13, 19)), view, fade)
+        full.paste(view, (0, 0)); full.paste(panel.render(state), (view_w, 0))
+        emit(full)
+
+    # ---- title, then the garden revealed in a slow orbit
+    n_title = int(fps * 3.0)
+    for i in range(n_title):
+        emit(title_card(width, height, i / n_title))
+    n_est = int(fps * 4.0)
+    for i in range(n_est):
+        u = i / max(1, n_est - 1); e = u * u * (3 - 2 * u)
+        shot({"mode": "idle", "board": board0, "foot_main": "a chess set built for a fly", "foot_sub": "a 3.2 mm square · a 3.4 mm fly · " + foot_sub},
+             az=96 + 28 * e, el=-18 + 9 * e, dist=6.2 - 2.3 * e, fade=min(1.0, i / (fps * 0.8)))
+
+    az_base = 124.0
+    n_rest = max(0, len(record) - animate)
+    glide_s = min(0.35, max(0.12, 22.0 / max(1, n_rest)))     # the fast-forward: at most ~22 s in all
     for k, step in enumerate(record):
         mv, before = step["move"], step["board"]
-        cam.azimuth = 124 + 6 * math.sin(k * 0.5); cam.elevation = -12
         san = before.san(mv)
-        if step["by"] == "fly":
-            for s, snap in enumerate(step["snaps"]):
-                for _ in range(max(1, int(fps * THINK / len(step["snaps"])))):
-                    shot(f"thinking · tick {3*(s+1)} of 24", snap,
-                         cands=step["cands"] if s >= len(step["snaps"]) - 2 else None,
-                         header=f"move {k+1} · the fly")
-            last = step["snaps"][-1]
+        drift = 5 * math.sin(k * 0.6)
+        who = "the fly" if step["by"] == "fly" else "Stockfish"
+        if k >= animate:
+            # the rest of the game, quickly: every piece glides, the brain flickers on the fly's moves
+            frm, to = square_xy(mv.from_square), square_xy(mv.to_square)
+            name = piece_at.get(mv.from_square)
+            n = max(2, int(fps * glide_s))
+            for i in range(n):
+                u = i / (n - 1); e = u * u * (3 - 2 * u)
+                if name:
+                    anim.place_piece(name, frm[0] + (to[0] - frm[0]) * e, frm[1] + (to[1] - frm[1]) * e, BOARD_TOP + 0.08 * math.sin(math.pi * u))
+                shot({"mode": "move" if step["by"] == "fly" else "opponent", "rates": step["snaps"][-1] if step["snaps"] else None, "tick": 24,
+                      "board": before, "move": mv, "cands": step["cands"], "san": san, "dim": 0.8,
+                      "foot_main": f"move {k + 1} · {who} plays {san}", "foot_sub": "the rest of the game, quickly · " + foot_sub},
+                     az=az_base + 30.0 * (k - animate) / max(1, n_rest), el=-12, dist=4.0)
+        elif step["by"] == "fly":
+            snaps = step["snaps"]; n_s = len(snaps)
+            per = max(1, int(fps * THINK / n_s))
+            for si, snap in enumerate(snaps):
+                for j in range(per):
+                    tick = min(24, 3 * (si + 1))
+                    shot({"mode": "think", "rates": snap, "tick": tick, "board": before,
+                          "cands": step["cands"] if si >= n_s - 2 else None,
+                          "foot_main": f"move {k + 1} · the fly is thinking", "foot_sub": foot_sub},
+                         az=az_base + drift + 1.5 * (si * per + j) / (n_s * per), el=-11, dist=3.9)
+            last = snaps[-1]
             states = segment_frames(walk_segments(mv, before, piece_at), fps)
             n = len(states)
             for i, (x, y, h, ph, carried, cz) in enumerate(states):
                 anim.place_fly(x, y, h, ph)
                 if carried:
                     anim.place_piece(carried, x - 0.10 * math.sin(h), y + 0.10 * math.cos(h), BOARD_TOP + cz, h)
-                ramp = min(1.0, i / (fps * 0.8), (n - 1 - i) / (fps * 0.8))     # ease the camera in and out
-                doing = "carrying the piece" if carried else "walking"
-                shot(doing, last, focus=(x, y), close=0.70 * ramp, dim=0.7,
-                     cands=step["cands"], header=f"move {k+1} · the fly plays {san}")
+                ramp = min(1.0, i / (fps * 0.8), (n - 1 - i) / (fps * 0.8))
+                tgt = np.array([x, y, BOARD_TOP + 0.10]); look = base_look + (tgt - base_look) * 0.70 * ramp
+                shot({"mode": "move", "rates": last, "tick": 24, "board": before, "move": mv, "cands": step["cands"], "san": san, "dim": 0.75,
+                      "foot_main": f"move {k + 1} · the fly plays {san}", "foot_sub": foot_sub},
+                     az=az_base + drift, el=-11 - 6 * ramp, dist=3.9 - 1.6 * ramp, look=look)
         else:
-            for _ in range(int(fps * 0.9)):
-                shot("the opponent replies", None, header=f"move {k+1} · Stockfish plays {san}")
+            # the opponent's piece glides across on its own; a captured piece sinks away as it arrives
+            frm, to = square_xy(mv.from_square), square_xy(mv.to_square)
+            name = piece_at.get(mv.from_square)
+            cap_sq = mv.to_square if before.piece_at(mv.to_square) else (
+                (mv.to_square + (-8 if before.turn == chess.WHITE else 8)) if before.is_en_passant(mv) else None)
+            victim = piece_at.get(cap_sq) if cap_sq is not None else None
+            n = int(fps * 1.1)
+            for i in range(n):
+                u = i / max(1, n - 1); e = u * u * (3 - 2 * u)
+                if name:
+                    anim.place_piece(name, frm[0] + (to[0] - frm[0]) * e, frm[1] + (to[1] - frm[1]) * e, BOARD_TOP + 0.10 * math.sin(math.pi * u))
+                if victim and u > 0.55:
+                    anim.place_piece(victim, DUMP[0] + 0.12 * (k % 5), DUMP[1] - 0.10 * (k % 6), BOARD_TOP)
+                shot({"mode": "opponent", "board": before, "move": mv,
+                      "foot_main": f"move {k + 1} · Stockfish plays {san}", "foot_sub": foot_sub},
+                     az=az_base + drift, el=-11, dist=3.9)
         # commit the move to the scene bookkeeping
         cap_sq = mv.to_square if before.piece_at(mv.to_square) else (
             (mv.to_square + (-8 if before.turn == chess.WHITE else 8)) if before.is_en_passant(mv) else None)
         if cap_sq is not None and cap_sq in piece_at:
             victim = piece_at.pop(cap_sq)
-            anim.place_piece(victim, DUMP[0] + 0.12 * (len(spares) % 5), DUMP[1] - 0.10 * (k % 6), BOARD_TOP)
+            anim.place_piece(victim, DUMP[0] + 0.12 * (k % 5), DUMP[1] - 0.10 * (k % 6), BOARD_TOP)
         if mv.from_square in piece_at:
             name = piece_at.pop(mv.from_square)
             piece_at[mv.to_square] = name
             x, y = square_xy(mv.to_square); anim.place_piece(name, x, y, BOARD_TOP)
         anim.place_fly(REST[0], REST[1], math.pi / 2, 0.0)
         progress(k + 1, total, t0, "demo: rendering")
-    for _ in range(fps):
-        shot("", None, header="")
+
+    # ---- hold the final position, then the card
+    for i in range(int(fps * 2.0)):
+        shot({"mode": "idle", "board": final, "foot_main": "the position after " + f"{len(record)} moves", "foot_sub": foot_sub},
+             az=az_base + 3, el=-13, dist=4.3)
+    res = final.result(claim_draw=True)
+    how = ("checkmate" if final.is_checkmate() else "stalemate" if final.is_stalemate() else
+           "insufficient material" if final.is_insufficient_material() else "repetition" if final.can_claim_threefold_repetition()
+           else "the fifty-move rule" if final.can_claim_fifty_moves() else "")
+    verdict = {"1-0": "the fly wins", "0-1": "Stockfish wins", "1/2-1/2": "a draw"}.get(res, f"unfinished after {len(record)} plies")
+    if how: verdict += f" · {how}"
+    n_moves = sum(1 for x in record if x["by"] == "fly")
+    n_end = int(fps * 4.5)
+    for i in range(n_end):
+        emit(end_card(width, height, i / n_end, verdict, f"{n_moves} moves chosen by the fly · {len(record)} plies played"))
     wr.close()
     print(f"wrote {out}: {frames} frames, {frames/fps:.1f} s, {time.time()-t0:.0f} s to render")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--moves", type=int, default=12)
+    ap.add_argument("--moves", type=int, default=200, help="plies to play; the game stops earlier when it ends")
+    ap.add_argument("--animate", type=int, default=12, help="plies shown in full; the rest are fast-forwarded to the result")
     ap.add_argument("--out", default="data/fly_chess.mp4")
-    ap.add_argument("--width", type=int, default=1440); ap.add_argument("--height", type=int, default=900)
+    ap.add_argument("--width", type=int, default=1920); ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--weights", default=str(DATA / "train_gpu" / "model_step11600.pt"))
     ap.add_argument("--stockfish", default="stockfish"); ap.add_argument("--elo", type=int, default=1320)
     ap.add_argument("--device", default="cpu"); ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--save-game", default=None, help="pickle the played game so the video can be re-rendered without replaying")
+    ap.add_argument("--replay", default=None, help="render a previously saved game instead of playing one")
     a = ap.parse_args()
-    rec, final = play(a.moves, a.weights, a.stockfish, a.elo, a.device, a.seed)
-    print(f"game: {len(rec)} moves recorded, final position {final.fen()}")
-    render(rec, a.out, a.width, a.height, a.fps, a.device)
+    if a.replay:
+        rec, final = pickle.load(open(a.replay, "rb"))
+        print(f"replaying {len(rec)} recorded moves from {a.replay}")
+    else:
+        rec, final = play(a.moves, a.weights, a.stockfish, a.elo, a.device, a.seed)
+        print(f"game: {len(rec)} moves recorded, final position {final.fen()}")
+        if a.save_game:
+            pickle.dump((rec, final), open(a.save_game, "wb")); print(f"saved the game to {a.save_game}")
+    render(rec, final, a.out, a.width, a.height, a.fps, a.device, a.elo, a.animate)

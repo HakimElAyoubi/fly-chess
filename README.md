@@ -19,7 +19,7 @@ The full plan is in [PLAN.md](PLAN.md) (seven phases, all finished). Status:
 | 3 | Teach it the rules | done: 6.2 M positions, 79.3% legal, 24.0% agreement with the move played |
 | 4 | Make it play | done: a UCI engine; it beats a random mover 0.67, loses to a greedy capture bot 0.31 |
 | 5 | Look inside | done: the chess lives in the visual pathway; the higher brain contributes nothing |
-| 6 | The demo | done: a fly-scale chess set in a garden, the fly plays Stockfish and moves its own pieces (rendered video; no interactive human play) |
+| 6 | The demo | done: a garden with sun, trees and flowers around a fly-scale chess set; the fly plays Stockfish and moves its own pieces while its brain lights up beside it (rendered film; no interactive human play) |
 | 7 | Learn from its own games | done: a PPO pipeline; 1.41 M self-played moves taught it to draw, not to win |
 
 **The short version of the result.** A fly's connectome, with only its unmeasured connection
@@ -38,9 +38,11 @@ the reward paid for not losing material and a policy that cannot calculate buys 
 - `flybrain/` — Phase 1: the connectome-constrained brain model (144,209 neurons, 21.27 M
   signed connections), the two biology checks it passes, and the activity export. See
   [flybrain/README.md](flybrain/README.md) for the model, the results and its known limitation.
-- `flybrain/scene.py`, `flybrain/demo.py` — Phase 6: the garden, the fly-scale chess set and the
-  rendered demo in which the fly plays a real game against Stockfish and physically moves its
-  pieces, with its brain lighting up during the thinking pause.
+- `flybrain/scene.py`, `flybrain/panel.py`, `flybrain/demo.py` — Phase 6: the garden (sun,
+  clouds, trees, flowers, a mossy stone), the fly-scale chess set, the side panel (the brain lit
+  by its activity, the board as the retina receives it, the candidate moves), and the film in
+  which the fly plays a real game against Stockfish and physically moves its pieces.
+  `python -m flybrain.scene` renders a still; `python -m flybrain.demo` plays and films a game.
 - `flybrain/env.py`, `flybrain/rl.py` — Phase 7: the reinforcement-learning pipeline (batched
   chess environment, PPO with a critic on the descending neurons and a KL anchor to the
   supervised policy). `render_rl.py` draws the learning curve.

@@ -24,3 +24,4 @@ data/progress.json
 data/*.log
 data/rl_*/
 data/rl_*.json
+data/*.pkl

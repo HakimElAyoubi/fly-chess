@@ -161,10 +161,12 @@ demo constrains it.
    engine built in Phase 4.
 Done when: a stranger can play the fly in a garden and watch it walk over and move the pieces.
 
-**Status 2026-09-18 — built, with one half missing.** The garden, the fly-scale set, the walk, the
-grip-carry-release and the brain panel all exist, and the rendered demo shows the fly playing a
-real game against Stockfish and physically moving its own pieces (`flybrain/scene.py`,
-`flybrain/demo.py`). What does not exist is the interactive path: you cannot sit down and play the
+**Status 2026-09-18 — built, with one half missing.** The garden (sun, clouds, a hazed treeline,
+flowers, mushrooms, a mossy stone), the fly-scale set with turned pieces on a walnut-and-maple
+board, the walk, the grip-carry-release, and a side panel showing the brain lit by its activity,
+the board as the retina receives it and the candidate moves, all exist; the film shows the fly
+playing a real game against Stockfish and physically moving its own pieces, then fast-forwards
+to the result (`flybrain/scene.py`, `flybrain/panel.py`, `flybrain/demo.py`). What does not exist is the interactive path: you cannot sit down and play the
 fly inside the garden. `./fly-uci` lets you play it in any chess GUI, which is not the same thing.
 That is the one item of the original specification still open.
 
