@@ -5,6 +5,9 @@ set -e
 cd "$(dirname "$0")/.."
 HOURS=${1:-2.5}; OPP=${2:-greedy}; ENVS=${3:-96}; HOR=${4:-16}; TAG=${5:-ppo}
 pip install -q numpy pandas pyarrow scipy python-chess 2>&1 | grep -vi "warning\|notice" || true
+# the eye needs the retinotopic hex columns from the annotation table; the graph itself is pushed
+B=https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome
+[ -f data/body-annotations-male-cns-v1.0-minconf-0.5.feather ] || curl -sS -o data/body-annotations-male-cns-v1.0-minconf-0.5.feather $B/body-annotations-male-cns-v1.0-minconf-0.5.feather
 python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 (setsid nohup bash remote/selfstop_watch.sh rl.log 20 > /dev/null 2>&1 &)
 python -m flybrain.rl --device cuda --tag "$TAG" \
