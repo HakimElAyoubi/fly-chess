@@ -334,7 +334,8 @@ from its resting spot to the piece, carries it to its square, and walks home; a 
 carried off the board first. Stockfish's pieces glide across on their own. After the animated
 opening, the rest of the game is fast-forwarded at a few plies a second to the real result, which
 the end card states. `--save-game` pickles the played game so the film can be re-rendered without
-replaying it; `--replay` renders a saved one. The game is played by exactly the same code as the
+replaying it; `--replay` renders a saved one. The default output is 3840 × 2160 at 30 fps; the
+panel is drawn natively at that scale rather than upscaled. The game is played by exactly the same code as the
 engine and the matches; nothing in the demo touches the model.
 
 ## Phase 7: reinforcement learning (18 Sep 2026)
