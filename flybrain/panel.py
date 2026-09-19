@@ -48,6 +48,33 @@ def _font(name, size):
         return ImageFont.load_default()
 
 
+class _Draw:
+    """ImageDraw with a scale: the panel is laid out in a 640 x 1080 design space and drawn at
+    any size, fonts included, so text stays crisp at 4K instead of being upscaled."""
+    def __init__(self, img, k):
+        self.d, self.k = ImageDraw.Draw(img), k
+
+    def _p(self, pts):
+        k = self.k
+        return [(x * k, y * k) for x, y in pts]
+
+    def text(self, xy, txt, font, fill, stroke_width=0, stroke_fill=None):
+        self.d.text((xy[0] * self.k, xy[1] * self.k), txt, font=font, fill=fill,
+                    stroke_width=int(round(stroke_width * self.k)), stroke_fill=stroke_fill)
+
+    def textlength(self, txt, font):
+        return self.d.textlength(txt, font=font) / self.k
+
+    def line(self, pts, fill, width=1):
+        self.d.line(self._p(pts), fill=fill, width=max(1, int(round(width * self.k))))
+
+    def rectangle(self, box, fill):
+        self.d.rectangle([box[0] * self.k, box[1] * self.k, box[2] * self.k, box[3] * self.k], fill=fill)
+
+    def polygon(self, pts, fill):
+        self.d.polygon(self._p(pts), fill=fill)
+
+
 def group_of(name):
     for g, prefixes, _ in GROUPS:
         if prefixes and any(name.startswith(p) for p in prefixes):
@@ -56,15 +83,17 @@ def group_of(name):
 
 
 class Panel:
-    DESIGN = (640, 1080)                  # everything is laid out at this size and scaled to fit
+    DESIGN = (640, 1080)                  # everything is laid out at this size and drawn at any scale
 
     def __init__(self, meta, eye, w=640, h=1080):
         self.out_w, self.out_h = w, h
+        self.k = h / self.DESIGN[1]
         w, h = self.DESIGN
         self.w, self.h = w, h
-        self.f = {k: _font(*v) for k, v in {"title": ("title", 40), "sub": ("body", 15), "h": ("bold", 15), "body": ("body", 14),
-                                             "small": ("body", 12), "big": ("bold", 22), "move": ("title", 30), "glyph": ("glyph", 22),
-                                             "label": ("body", 12)}.items()}
+        self.f = {n: _font(kind, int(round(size * self.k))) for n, (kind, size) in
+                  {"title": ("title", 40), "sub": ("body", 15), "h": ("bold", 15), "body": ("body", 14),
+                   "small": ("body", 12), "big": ("bold", 22), "move": ("title", 30), "glyph": ("glyph", 22),
+                   "label": ("body", 12)}.items()}
         # ---- layout, top to bottom
         self.y_head = 0; self.y_brain = 92; self.brain_h = int(h * 0.40)
         self.y_eye = self.y_brain + self.brain_h + 22; self.eye_h = int(h * 0.245)
@@ -93,45 +122,49 @@ class Panel:
         # frontal projection: x across, y down (the atlas y already runs dorsal to ventral)
         pts = np.concatenate([roi[:, :2], own[has][:, :2]], 0)
         lo, hi = pts.min(0), pts.max(0)
-        pad_x, pad_top, pad_bot = 26, 40, 34
-        sc = min((self.w - 2 * pad_x) / (hi[0] - lo[0]), (self.brain_h - pad_top - pad_bot) / (hi[1] - lo[1]))
+        k = self.k
+        W, H = int(round(self.w * k)), int(round(self.brain_h * k))          # the map in output pixels
+        self.map_w, self.map_h = W, H
+        pad_x, pad_top, pad_bot = 26 * k, 40 * k, 34 * k
+        sc = min((W - 2 * pad_x) / (hi[0] - lo[0]), (H - pad_top - pad_bot) / (hi[1] - lo[1]))
         span = (hi - lo) * sc
-        off = np.array([pad_x + ((self.w - 2 * pad_x) - span[0]) / 2, pad_top + ((self.brain_h - pad_top - pad_bot) - span[1]) / 2])
+        off = np.array([pad_x + ((W - 2 * pad_x) - span[0]) / 2, pad_top + ((H - pad_top - pad_bot) - span[1]) / 2])
         to_px = lambda p: ((p[:, :2] - lo) * sc + off)
         # ghost: a density image per group, tinted
-        ghost = np.zeros((self.brain_h, self.w, 3), np.float32)
+        ghost = np.zeros((H, W, 3), np.float32)
         gnames = np.array([group_of(names[int(l)]) for l in np.unique(lab)]); gid = {int(l): g for l, g in zip(np.unique(lab), gnames)}
         gcol = {g: np.array(c, np.float32) for g, _, c in GROUPS}
         px = to_px(roi).astype(np.int32)
-        px[:, 0] = np.clip(px[:, 0], 0, self.w - 1); px[:, 1] = np.clip(px[:, 1], 0, self.brain_h - 1)
+        px[:, 0] = np.clip(px[:, 0], 0, W - 1); px[:, 1] = np.clip(px[:, 1], 0, H - 1)
         glab = np.array([gid[int(l)] for l in lab])
         self.centroids, self.extent = {}, {}
         for g, _, c in GROUPS:
             m = glab == g
             if not m.any(): continue
-            dens = np.zeros((self.brain_h, self.w), np.float32)
+            dens = np.zeros((H, W), np.float32)
             np.add.at(dens, (px[m, 1], px[m, 0]), 1.0)
-            dens = gaussian_filter(dens, 1.6)
+            dens = gaussian_filter(dens, 1.6 * k)
             a = np.clip(dens / (np.percentile(dens[dens > 0], 90) + 1e-6), 0, 1) ** 0.6
             ghost += a[:, :, None] * gcol[g][None, None, :]
-            self.centroids[g] = px[m].mean(0); self.extent[g] = (px[m].min(0), px[m].max(0))
+            self.centroids[g] = px[m].mean(0) / k; self.extent[g] = (px[m].min(0) / k, px[m].max(0) / k)   # design units, for labels
         # the two optic lobes separately, and which of them is the eye the board is shown to
         side = np.array([names[int(l)][-2] if names[int(l)].endswith(")") else "" for l in lab])
         ol = glab == "optic lobe"
-        self.lobes = {s: px[ol & (side == s)].mean(0) for s in ("L", "R") if (ol & (side == s)).any()}
+        self.lobes = {s: px[ol & (side == s)].mean(0) / k for s in ("L", "R") if (ol & (side == s)).any()}
         ghost = np.clip(ghost * 0.55, 0, 255)
-        base = np.zeros((self.brain_h, self.w, 3), np.float32); base[:, :] = BG
+        base = np.zeros((H, W, 3), np.float32); base[:, :] = BG
         self.ghost = np.clip(base + ghost, 0, 255).astype(np.uint8)
         sp = to_px(own[has]).astype(np.int32)
         self.px = np.zeros((len(soma), 2), np.int32)
-        self.px[self.idx] = np.stack([np.clip(sp[:, 0], 1, self.w - 3), np.clip(sp[:, 1], 1, self.brain_h - 3)], 1)
+        self.px[self.idx] = np.stack([np.clip(sp[:, 0], 1, W - 3), np.clip(sp[:, 1], 1, H - 3)], 1)
+        self.dot = [(dx, dy) for dx in range(int(math.ceil(2 * k))) for dy in range(int(math.ceil(2 * k)))]   # a lit neuron's footprint
         # the descending neurons: the readout's source, lit on their own scale so they show
         sc_ = meta.superclass.to_numpy()
         self.dn = np.flatnonzero((sc_ == "descending_neuron") & has)
         self.dn_px = self.px[self.soma_index[self.dn]]
         # which lobe sees the board: the one holding the right eye's photoreceptors
         pr = np.flatnonzero((sc_ == "ol_sensory") & (meta.side.to_numpy() == "R") & has)
-        prx = self.px[self.soma_index[pr], 0].mean() if len(pr) else self.w / 2
+        prx = self.px[self.soma_index[pr], 0].mean() / self.k if len(pr) else self.w / 2
         self.seeing = min(self.lobes, key=lambda k: abs(self.lobes[k][0] - prx)) if self.lobes else None
 
     def draw_brain(self, img, rates, tick, ticks=24, dim=1.0, live_label=True):
@@ -148,18 +181,20 @@ class Panel:
                 warm = v[live] > 0
                 col = np.where(warm[:, None], np.array(AMBER, np.float32), np.array(BLUE, np.float32)) * a[:, None]
                 x, y = self.px[self.idx[live], 0], self.px[self.idx[live], 1]
-                for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                    np.maximum.at(glow, (y + dy, x + dx), col)
+                for dx, dy in self.dot:
+                    np.maximum.at(glow, (np.clip(y + dy, 0, self.map_h - 1), np.clip(x + dx, 0, self.map_w - 1)), col)
             # the descending neurons, on their own scale: they are the readout
             dv = rates[self.dn]; dpeak = float(np.abs(dv).max()) or 1.0
             da = np.clip(np.abs(dv) / dpeak, 0, 1) ** 0.5 * dim
             dcol = np.where((dv > 0)[:, None], np.array((255, 236, 200), np.float32), np.array((170, 210, 255), np.float32)) * da[:, None]
-            for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1), (-1, 0), (0, -1)):
-                np.maximum.at(glow, (np.clip(self.dn_px[:, 1] + dy, 0, self.brain_h - 1), np.clip(self.dn_px[:, 0] + dx, 0, self.w - 1)), dcol)
-            halo = gaussian_filter(glow, (2.2, 2.2, 0)) * 1.6
+            r_ = int(math.ceil(self.k))
+            for dx in range(-r_, r_ + 1):
+                for dy in range(-r_, r_ + 1):
+                    np.maximum.at(glow, (np.clip(self.dn_px[:, 1] + dy, 0, self.map_h - 1), np.clip(self.dn_px[:, 0] + dx, 0, self.map_w - 1)), dcol)
+            halo = gaussian_filter(glow, (2.2 * self.k, 2.2 * self.k, 0)) * 1.6
             arr = np.maximum(arr, np.clip(arr + halo, 0, 255)); arr = np.maximum(arr, glow)
-        img.paste(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)), (0, self.y_brain))
-        dr = ImageDraw.Draw(img)
+        img.paste(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)), (0, int(round(self.y_brain * self.k))))
+        dr = _Draw(img, self.k)
         y0 = self.y_brain
         dr.text((22, y0 + 8), "THE BRAIN", font=self.f["h"], fill=INK)
         dr.text((22, y0 + 28), "144,209 neurons · 21 million connections · every one measured", font=self.f["small"], fill=MUTED)
@@ -180,7 +215,7 @@ class Panel:
             tw = dr.textlength("central complex", font=lf)
             dr.text((cx - tw / 2, y0 + hi_[1] + 4), "central complex", font=lf, fill=lc)
         if len(self.dn_px):
-            cx, cy = self.dn_px.mean(0); tw = dr.textlength("descending neurons", font=lf)
+            cx, cy = self.dn_px.mean(0) / self.k; tw = dr.textlength("descending neurons", font=lf)
             dr.text((cx - tw / 2, y0 + cy + 30), "descending neurons", font=lf, fill=lc)
         # activity readout under the map
         yb = y0 + self.brain_h - 26
@@ -222,7 +257,7 @@ class Panel:
         self.state_code = STATE_CODE
 
     def draw_eye(self, img, board, move=None, cands=None):
-        dr = ImageDraw.Draw(img)
+        dr = _Draw(img, self.k)
         y0 = self.y_eye; x_b = 22; x_e = 22 + self.box_w + 22
         dr.text((x_b, y0), "THE BOARD", font=self.f["h"], fill=INK)
         dr.text((x_e, y0), "ON THE RETINA", font=self.f["h"], fill=INK)
@@ -248,9 +283,9 @@ class Panel:
             g = glyph[pc.piece_type]
             tw = dr.textlength(g, font=gf)
             if pc.color == chess.WHITE:
-                dr.text((x - tw / 2, y - 13), g, font=gf, fill=(250, 248, 240), stroke_width=1, stroke_fill=(60, 40, 20))
+                dr.text((x - tw / 2, y - 13), g, gf, (250, 248, 240), stroke_width=1, stroke_fill=(60, 40, 20))
             else:
-                dr.text((x - tw / 2, y - 13), g, font=gf, fill=(20, 18, 20), stroke_width=1, stroke_fill=(180, 170, 150))
+                dr.text((x - tw / 2, y - 13), g, gf, (20, 18, 20), stroke_width=1, stroke_fill=(180, 170, 150))
         if move:
             (fx, fy), (tx, ty) = [(bx + chess.square_file(s) * sq + sq / 2, by + (7 - chess.square_rank(s)) * sq + sq / 2) for s in (frm, to)]
             dr.line([(fx, fy), (tx, ty)], fill=AMBER, width=4)
@@ -278,7 +313,7 @@ class Panel:
 
     # ------------------------------------------------------------------ the candidates
     def draw_candidates(self, img, cands, chosen=None):
-        dr = ImageDraw.Draw(img)
+        dr = _Draw(img, self.k)
         y = self.y_cand
         dr.line([(22, y - 6), (self.w - 22, y - 6)], fill=LINE)
         dr.text((22, y + 4), "WHAT THE DESCENDING NEURONS ARGUED FOR", font=self.f["h"], fill=INK)
@@ -297,7 +332,7 @@ class Panel:
 
     # ------------------------------------------------------------------ header and footer
     def draw_frame(self, img, header, sub, foot_main, foot_sub):
-        dr = ImageDraw.Draw(img)
+        dr = _Draw(img, self.k)
         dr.text((22, 14), "FLY CHESS", font=self.f["title"], fill=INK)
         tw = dr.textlength("FLY CHESS", font=self.f["title"])
         dr.text((22, 64), sub, font=self.f["sub"], fill=MUTED)
@@ -307,7 +342,7 @@ class Panel:
 
     def render(self, state):
         """state: mode, rates, tick, board, move, cands, header, move_no, who, san, caption."""
-        img = Image.new("RGB", (self.w, self.h), BG)
+        img = Image.new("RGB", (self.out_w, self.out_h), BG)
         mode = state.get("mode", "idle")
         self.draw_frame(img, "FLY CHESS", "a fruit fly's connectome plays chess · every neuron and connection as measured",
                         state.get("foot_main", ""), state.get("foot_sub", ""))
@@ -315,8 +350,6 @@ class Panel:
                         live_label=mode in ("think", "move"))
         self.draw_eye(img, state["board"], state.get("move") if mode in ("move", "opponent") else None)
         self.draw_candidates(img, state.get("cands"), chosen=state.get("san") if mode == "move" else None)
-        if (self.out_w, self.out_h) != (self.w, self.h):
-            img = img.resize((self.out_w, self.out_h), Image.LANCZOS)
         return img
 
 
@@ -326,13 +359,14 @@ def title_card(w, h, t, fonts=None):
     img = Image.new("RGB", (w, h), BG); dr = ImageDraw.Draw(img)
     a = min(1.0, t / 0.18, (1 - t) / 0.18) if t < 1 else 0
     def mix(c): return tuple(int(BG[i] + (c[i] - BG[i]) * a) for i in range(3))
-    f1, f2, f3 = _font("title", 96), _font("body", 26), _font("body", 18)
+    k = h / 1080
+    f1, f2, f3 = _font("title", int(96 * k)), _font("body", int(26 * k)), _font("body", int(18 * k))
     lines = [("FLY CHESS", f1, mix(INK), -120), ("a fruit fly's complete brain map, made to play", f2, mix(MUTED), 10),
              ("144,209 neurons · 21 million connections · every one exactly as measured · only their strengths learned", f3, mix(DIM), 62),
              ("White: the fly    Black: Stockfish", f3, mix(DIM), 96)]
     for txt, f, c, dy in lines:
         tw = dr.textlength(txt, font=f)
-        dr.text(((w - tw) / 2, h / 2 + dy - (60 if f is f1 else 0)), txt, font=f, fill=c)
+        dr.text(((w - tw) / 2, h / 2 + (dy - (60 if f is f1 else 0)) * k), txt, font=f, fill=c)
     return img
 
 
@@ -340,14 +374,15 @@ def end_card(w, h, t, result, moves, fonts=None):
     img = Image.new("RGB", (w, h), BG); dr = ImageDraw.Draw(img)
     a = min(1.0, t / 0.25)
     def mix(c): return tuple(int(BG[i] + (c[i] - BG[i]) * a) for i in range(3))
-    f1, f2, f3 = _font("title", 64), _font("body", 24), _font("body", 17)
+    k = h / 1080
+    f1, f2, f3 = _font("title", int(64 * k)), _font("body", int(24 * k)), _font("body", int(17 * k))
     lines = [(result, f1, mix(INK), -70), (moves, f2, mix(MUTED), 20),
              ("nothing in the demo is simulated but the brain: the fly sees the board, 144,209 neurons run for 24 ticks,", f3, mix(DIM), 80),
              ("and the move is read from its 1,314 descending neurons. The walk is animation.", f3, mix(DIM), 106),
              ("MaleCNS v1.0 · Janelia, Cambridge, Google Research · github.com/HakimElAyoubi/fly-chess", f3, mix(DIM), 160)]
     for txt, f, c, dy in lines:
         tw = dr.textlength(txt, font=f)
-        dr.text(((w - tw) / 2, h / 2 + dy - 40), txt, font=f, fill=c)
+        dr.text(((w - tw) / 2, h / 2 + (dy - 40) * k), txt, font=f, fill=c)
     return img
 
 
@@ -355,7 +390,7 @@ if __name__ == "__main__":
     from .graph import load
     from .eye import Eye
     W, meta = load(); eye = Eye(W, meta)
-    p = Panel(meta, eye, w=640, h=1080)
+    p = Panel(meta, eye, w=1280, h=2160)
     S = "/private/tmp/claude-501/-Users-hakim-Desktop-fruit-fly/87f30919-7987-456d-9e6d-4dae2ee87d86/scratchpad/snap.npz"
     z = np.load(S, allow_pickle=True)
     snaps, fen, cands = z["snaps"], str(z["fen"]), [(str(a), float(b)) for a, b in z["cands"]]
@@ -364,5 +399,5 @@ if __name__ == "__main__":
                       "foot_main": "move 2 · the fly is thinking", "foot_sub": "White: the fly · Black: Stockfish 1320"})
     move = p.render({"mode": "move", "rates": snaps[-1], "tick": 24, "board": b, "move": mv, "cands": cands, "san": cands[0][0], "dim": 0.7,
                      "foot_main": f"move 2 · the fly plays {cands[0][0]}", "foot_sub": "White: the fly · Black: Stockfish 1320"})
-    out = Image.new("RGB", (640 * 2 + 20, 1080), (40, 40, 40)); out.paste(think, (0, 0)); out.paste(move, (660, 0))
-    out.save(DATA / "panel_test.png"); print("wrote data/panel_test.png")
+    out = Image.new("RGB", (1280 * 2 + 40, 2160), (40, 40, 40)); out.paste(think, (0, 0)); out.paste(move, (1320, 0))
+    out.save(DATA / "panel_test.png"); print("wrote data/panel_test.png at", out.size)
