@@ -333,8 +333,8 @@ def build(board=None, seed=3):
   <include file="fruitfly_nolights.xml"/>
 
   <visual>
-    <global offwidth="2400" offheight="1500" azimuth="132" elevation="-14"/>
-    <quality shadowsize="16384" offsamples="32"/>
+    <global offwidth="3840" offheight="2160" azimuth="132" elevation="-14"/>
+    <quality shadowsize="16384" offsamples="16"/>
     <headlight ambient="0.26 0.27 0.30" diffuse="0.14 0.14 0.15" specular="0.03 0.03 0.03"/>
     <map stiffness="1e+04" stiffnessrot="5e+04" force="2e-05" shadowclip="2.4" shadowscale="1.2" znear="0.002" zfar="1000"/>
     <scale jointwidth="0.004" framewidth="0.004"/>
