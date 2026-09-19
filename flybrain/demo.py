@@ -348,7 +348,7 @@ if __name__ == "__main__":
     ap.add_argument("--moves", type=int, default=200, help="plies to play; the game stops earlier when it ends")
     ap.add_argument("--animate", type=int, default=12, help="plies shown in full; the rest are fast-forwarded to the result")
     ap.add_argument("--out", default="data/fly_chess.mp4")
-    ap.add_argument("--width", type=int, default=1920); ap.add_argument("--height", type=int, default=1080)
+    ap.add_argument("--width", type=int, default=3840); ap.add_argument("--height", type=int, default=2160)
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--weights", default=str(DATA / "train_gpu" / "model_step11600.pt"))
     ap.add_argument("--stockfish", default="stockfish"); ap.add_argument("--elo", type=int, default=1320)
