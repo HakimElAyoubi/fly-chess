@@ -206,7 +206,7 @@ def render(record, final, out, width, height, fps, device, elo=1320, animate=12)
     W, meta = load(); eye = Eye(W, meta)
     anim = Animator(m, d)
     panel = Panel(meta, eye, w=int(width / 3), h=height)
-    view_w = width - panel.w
+    view_w = width - panel.out_w                            # the panel's output width, not its design width
     r = mujoco.Renderer(m, height=height, width=view_w)
     cam = mujoco.MjvCamera(); mujoco.mjv_defaultFreeCamera(m, cam)
 
